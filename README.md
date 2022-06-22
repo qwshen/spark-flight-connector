@@ -21,7 +21,7 @@ tables-joining statement. For example:
     ```
   - tables-joining statement
     ```roomsql
-     orders o inner join customers c on o.customer_id = c.id where o.id = 312831
+     orders o inner join customers c on o.customer_id = c.id
     ```
 
 The following properties are optional:
