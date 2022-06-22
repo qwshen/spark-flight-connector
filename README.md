@@ -192,5 +192,5 @@ Note: for Dremio flight, the Map type is converted to Struct. The connector dete
 
 When the connector is writing data, the schema of the target table is retrieved first, then the connector tries to adapt the source field to the type of the target, so the types of source and target must be compatible. Otherwise runtime exception will be thrown. Such as
 - Spark Int adapts to Arrow-Flight Decimal;
-- Spark Tiemstamp adapts to Arrow-Flight Time;
+- Spark Timestamp adapts to Arrow-Flight Time;
 - etc.
