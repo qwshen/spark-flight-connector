@@ -24,7 +24,7 @@ tables-joining statement. For example:
      orders o inner join customers c on o.customer_id = c.id where o.id = 312831
     ```
 
-The following property is optional:
+The following properties are optional:
 - tls.enabled: whether the arrow-flight service is tls-enabled for secure communication;
 - tls.verifyServer - whether to verify the certificate from the arrow-flight server; Default: true if tls.enabled = true.
 - tls.truststore.jksFile: the trust-store file in jks format;
