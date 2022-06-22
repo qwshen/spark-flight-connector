@@ -28,14 +28,14 @@ public class FlightTable implements org.apache.spark.sql.connector.catalog.Table
     private static final String PARTITION_SIZE = "partition.size";
     //the option keys for partitioning
     private static final String PARTITION_HASH_FUN = "partition.hashFunc";
-    private static final String PARTITION_BY_COLUMN = "partition.ByColumn";
+    private static final String PARTITION_BY_COLUMN = "partition.byColumn";
     private static final String PARTITION_LOWER_BOUND = "partition.lowerBound";
     private static final String PARTITION_UPPER_BOUND = "partition.upperBound";
     private static final String PARTITION_PREDICATE = "partition.predicate";
     private static final String PARTITION_PREDICATES = "partition.predicates";
     //merge by keys
-    private static final String MERGE_BY_COLUMN = "merge.ByColumn";
-    private static final String MERGE_BY_COLUMNS = "merge.ByColumns";
+    private static final String MERGE_BY_COLUMN = "merge.byColumn";
+    private static final String MERGE_BY_COLUMNS = "merge.byColumns";
     //the batch-size for writing
     private static final String BATCH_SIZE = "batch.size";
 
