@@ -172,6 +172,7 @@ signed int64 | long
 un-signed int64 | long
 var-char | string
 decimal | decimal
+decimal256 | decimal
 floating-single | float
 floating-half | float
 floating-double | double
