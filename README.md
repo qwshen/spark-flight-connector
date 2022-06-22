@@ -145,7 +145,7 @@ The following options are supported for writing:
 - merge.byColumn: the name of a column used for merging the data into the target table. This only applies when the save-mode is in append;
 - merge.ByColumns: the name of multiple columns used for merging the data into the target table. This only applies when the save-mode is in append.
 
-Examples:
+Example:
 ```scala
 df.write
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
