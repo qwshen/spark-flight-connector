@@ -1,4 +1,4 @@
-The flight-spark-connector is a Spark DataSource API (v2) that reads/writes data from/to Arrow-Flight services, such as Dremio Arrow-Flight Server. Arrow Flight enables 
+The spark-flight-connector is a Spark DataSource API (v2) that reads/writes data from/to Arrow-Flight services, such as Dremio Arrow-Flight Server. Arrow Flight enables 
 high speed data transfer compared to ODBC/JDBC connections by utilizing the Apache Arrow format to avoid serializing and deserializing data.
 
 To build the project:
@@ -6,7 +6,9 @@ To build the project:
   mvn clean install -DskipTests
 ```
 
-The connector requires Spark 3.2.0+ due to the support of Interval types. In order to connect to an arrow-flight service, the following 
+The connector requires Spark 3.2.0+ due to the support of Interval types. For a quick start, please jump to this [tutorial](docs/tutorial.md).
+
+In order to connect to an arrow-flight service, the following 
 properties are mandatory:
 
 - host: the full name or ip of the arrow-flight server host;
