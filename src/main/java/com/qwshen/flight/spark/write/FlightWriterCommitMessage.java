@@ -8,7 +8,7 @@ import java.io.Serializable;
  */
 public class FlightWriterCommitMessage implements WriterCommitMessage, Serializable {
     public final int partitionId;
-    public final int taskId;
+    public final long taskId;
     public final boolean success;
     public final long size;
     public final String error;
@@ -19,7 +19,7 @@ public class FlightWriterCommitMessage implements WriterCommitMessage, Serializa
      * @param taskId - the task id of the writing operation
      * @param size - number of rows been written
      */
-    public FlightWriterCommitMessage(int partitionId, int taskId, long size) {
+    public FlightWriterCommitMessage(int partitionId, long taskId, long size) {
         this.partitionId = partitionId;
         this.taskId = taskId;
         this.size = size;
@@ -34,7 +34,7 @@ public class FlightWriterCommitMessage implements WriterCommitMessage, Serializa
      * @param size - number of rows been written
      * @param error - the error message describing the root or cause of the failure.
      */
-    public FlightWriterCommitMessage(int partitionId, int taskId, long size, String error) {
+    public FlightWriterCommitMessage(int partitionId, long taskId, long size, String error) {
         this.partitionId = partitionId;
         this.taskId = taskId;
         this.size = size;

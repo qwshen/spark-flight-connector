@@ -12,7 +12,6 @@ import org.apache.spark.sql.connector.write.WriterCommitMessage;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-
 import java.io.IOException;
 import java.util.function.Function;
 import java.util.stream.IntStream;
@@ -25,87 +24,130 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
     private final long _taskId;
 
     private final StructType _dataSchema;
-    private final Field[] _fields;
+    private Schema _arrowSchema;
+
+    private final WriteStatement _stmt;
     private final int _batchSize;
 
     private final Client _client;
-    private final FlightSqlClient.PreparedStatement _preparedStmt = null;
+    private Field[] _fields = null;
+    private FlightSqlClient.PreparedStatement _preparedStmt = null;
+    private VectorSchemaRoot _root = null;
+    private Vector _vector = null;
 
-    private final VectorSchemaRoot _root;
     private final java.util.List<InternalRow> _rows;
-    private final Vector _vector;
+
+    private long _count = 0;
+    private String _error = "";
 
     /**
      * Construct a DataWriter
      * @param partitionId - the partition id of the data block to be written
      * @param taskId - the task id of the write operation
      * @param configuration - the configuration of remote flight service
-     * @param jsonSchema - the flight schema matching the data being written
+     * @param protocol - the protocol for writing - sql or arrow
      * @param stmt - the write-statement
      * @param batchSize - the batch size for the write
      */
-    public FlightDataWriter(int partitionId, long taskId, Configuration configuration, StructType dataSchema, String jsonSchema, String stmt, int batchSize) {
+    public FlightDataWriter(int partitionId, long taskId, Configuration configuration, StructType dataSchema, String arrowSchema, WriteProtocol protocol, WriteStatement stmt, int batchSize) {
         this._partitionId = partitionId;
         this._taskId = taskId;
 
         this._dataSchema = dataSchema;
         try {
-            this._client = Client.getOrCreate(configuration);
-            //this._preparedStmt = this._client.getPreparedStatement(stmt);
-            //final Schema schema = this._preparedStmt.getParameterSchema();
-            //TODO: remove the schema from JSON
-            Schema schema = Schema.fromJSON(jsonSchema);
-
-            this._fields = schema.getFields().toArray(new Field[0]);
-            this._root = VectorSchemaRoot.create(schema, new RootAllocator(Integer.MAX_VALUE));
-        } catch (Exception e){
-            throw new RuntimeException(e);
+            this._arrowSchema = Schema.fromJSON(arrowSchema);
+        } catch (Exception e) {
+            throw new RuntimeException("The arrow schema is inavlid.", e);
         }
+        this._stmt = stmt;
         this._batchSize = batchSize;
+
+        this._client = Client.getOrCreate(configuration);
+        if (protocol == WriteProtocol.ARROW) {
+            this._preparedStmt = this._client.getPreparedStatement(this._stmt.getStatement());
+            this._arrowSchema = this._preparedStmt.getParameterSchema();
+            this._fields = this._arrowSchema.getFields().toArray(new Field[0]);
+            this._root = VectorSchemaRoot.create(this._arrowSchema, new RootAllocator(Integer.MAX_VALUE));
+            this._vector = Vector.getOrCreate();
+        }
         this._rows = new java.util.ArrayList<>();
-        this._vector = Vector.getOrCreate();
     }
 
+    /**
+     * Write one row
+     * @param row - the row of data
+     * @throws IOException - thrown when writing failed
+     */
     @Override
     public void write(InternalRow row) throws IOException {
-        this._rows.add(row);
+        this._rows.add(row.copy());
         if (this._rows.size() > this._batchSize) {
             this.write(this._rows.toArray(new InternalRow[0]));
             this._rows.clear();
         }
     }
-
+    /**
+     * Write out all rows
+     * @param rows
+     */
     private void write(InternalRow[] rows) {
-        Function<String, DataType> dtFind = (name) -> this._dataSchema.find(field -> field.name().equalsIgnoreCase(name)).map(StructField::dataType).get();
-        IntStream.range(0, this._fields.length).forEach(idx -> this._vector.populate(this._root.getVector(idx), rows, idx, dtFind.apply(this._fields[idx].getName())));
-        this._root.setRowCount(rows.length);
-        this._preparedStmt.setParameters(this._root);
-        if (this._client.executeUpdate(this._preparedStmt) != rows.length) {
-
+        if (this._vector != null) {
+            Function<String, DataType> dtFind = (name) -> this._dataSchema.find(field -> field.name().equalsIgnoreCase(name)).map(StructField::dataType).get();
+            IntStream.range(0, this._fields.length).forEach(idx -> this._vector.populate(this._root.getVector(idx), rows, idx, dtFind.apply(this._fields[idx].getName())));
+            this._root.setRowCount(rows.length);
+            this._preparedStmt.setParameters(this._root);
+            try {
+                this._client.executeUpdate(this._preparedStmt);
+            } finally {
+                this._preparedStmt.clearParameters();
+                this._root.clear();
+            }
+        } else {
+            this._client.execute(this._stmt.fillStatement(rows, this._dataSchema.fields(), this._arrowSchema.getFields().toArray(new Field[0])));
         }
-        this._preparedStmt.clearParameters();
-        this._root.clear();
+        this._count += rows.length;
     }
 
+    /**
+     * Commit the write
+     * @return - a commit-message
+     */
     @Override
-    public WriterCommitMessage commit() throws IOException {
+    public WriterCommitMessage commit() {
         //write any left-over
         if (this._rows.size() > 0) {
             this.write(this._rows.toArray(new InternalRow[0]));
             this._rows.clear();
         }
-        //construct a commit message
-        return null;
+
+        long cnt = this._count;
+        this._count = 0;
+        this._error = "";
+        return new FlightWriterCommitMessage(this._partitionId, this._taskId, cnt);
     }
 
+    /**
+     * Abort the write
+     * @throws IOException - the exception with the error message
+     */
     @Override
     public void abort() throws IOException {
-
+        String err = this._error;
+        this._count = 0;
+        this._error = "";
+        throw new IOException(err);
     }
 
+    /**
+     * Close any connections
+     */
     @Override
-    public void close() throws IOException {
-        this._preparedStmt.close();
-        this._root.close();
+    public void close() {
+        if (this._preparedStmt != null) {
+            this._preparedStmt.close();
+        }
+        if (this._root != null) {
+            this._root.close();
+        }
     }
 }

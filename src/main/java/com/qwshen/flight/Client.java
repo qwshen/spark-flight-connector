@@ -8,13 +8,25 @@ import org.apache.arrow.flight.grpc.CredentialCallOption;
 import org.apache.arrow.flight.sql.FlightSqlClient;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.*;
+import org.apache.arrow.vector.complex.DenseUnionVector;
+import org.apache.arrow.vector.ipc.ReadChannel;
+import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.arrow.vector.util.Text;
 import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.net.URI;
+import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static java.util.Objects.isNull;
 
 /**
  * Describes the data-structure of Client for communicating with remote flight service
@@ -98,11 +110,33 @@ public final class Client implements AutoCloseable {
     }
 
     /**
+     * Execute a literal SQL statement
+     * @param stmt - the literal sql-statement
+     */
+    public long execute(String stmt) {
+        FlightInfo fi = this._sqlClient.execute(stmt, this._bearerToken);
+        long count = 0;
+        for (FlightEndpoint endpoint: fi.getEndpoints()) {
+            try {
+                try(FlightStream stream = this._client.getStream(endpoint.getTicket(), this._bearerToken)) {
+                    while (stream.next()) {
+                        VectorSchemaRoot root = stream.getRoot();
+                        count += root.getRowCount();
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return count;
+    }
+
+    /**
      * Truncate the target table
      * @param table - the name of the table
      */
     public void truncate(String table) {
-        this._sqlClient.execute(String.format("truncate table %s", table), this._bearerToken);
+        this.execute(String.format("truncate table %s", table));
     }
 
     /**

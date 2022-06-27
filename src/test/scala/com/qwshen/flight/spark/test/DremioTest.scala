@@ -237,7 +237,7 @@ class DremioTest extends FunSuite {
     df.write.format("flight")
       .option("host", this.dremioHost).option("port", this.dremioPort).option("tls.enabled", dremioTlsEnabled).option("user", this.user).option("password", this.password)
       .options(options)
-      .mode("overwrite").save
+      .mode("append").save
   }
 
   //create spark-session

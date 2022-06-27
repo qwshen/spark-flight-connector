@@ -158,7 +158,7 @@ public class PartitionBehavior implements Serializable {
             "yyyy-MM-dd", "yyyy/MM/d", "MM/dd/yyyy", "dd/MM/yyyy", "yyyyMMdd"
         };
         Optional<String[]> predicates = Optional.empty();
-        for (int i = 0; i < dtFormats.length && predicates.isEmpty(); i++) {
+        for (int i = 0; i < dtFormats.length && !predicates.isPresent(); i++) {
             predicates = tryDateTimePredicates(DateTimeFormat.forPattern(dtFormats[i]));
         }
         return predicates;

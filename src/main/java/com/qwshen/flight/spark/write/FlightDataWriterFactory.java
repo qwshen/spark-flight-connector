@@ -8,17 +8,17 @@ import org.apache.spark.sql.connector.write.DataWriterFactory;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.LoggerFactory;
 import java.util.Arrays;
-import java.util.stream.Collectors;
 
 /**
  * Defines the FLightDataWriterFactory to create DataWriters
  */
 public class FlightDataWriterFactory implements DataWriterFactory {
     private final Configuration _configuration;
-    private final WriteStatement _stmt;
     private final StructType _dataSchema;
-    //TODO: remove _jsonSchema
-    private final String _jsonSchema;
+    private final String _arrowSchema;
+
+    private final WriteStatement _stmt;
+    private final WriteProtocol _protocol;
     private final int _batchSize;
 
     /**
@@ -30,10 +30,13 @@ public class FlightDataWriterFactory implements DataWriterFactory {
      */
     public FlightDataWriterFactory(Configuration configuration, Table table, StructType dataSchema, WriteBehavior writeBehavior) {
         this._configuration = configuration;
-        this._stmt = table.getWriteStatement(writeBehavior.getMergeByColumns(), dataSchema);
         this._dataSchema = dataSchema;
-        //TODO: remove _jsonSchema
-        this._jsonSchema = new Schema(Arrays.stream(this._stmt.getParams()).map(p -> table.getSchema().findField(p)).collect(Collectors.toList()), table.getSchema().getCustomMetadata()).toJson();
+        this._arrowSchema = table.getSchema().toJson();
+
+        this._stmt = (writeBehavior.getMergeByColumns() == null || writeBehavior.getMergeByColumns().length == 0) ? new WriteStatement(table.getName(), dataSchema, table.getSchema(), table.getColumnQuote())
+            : new WriteStatement(table.getName(), writeBehavior.getMergeByColumns(), dataSchema, table.getSchema(), table.getColumnQuote());
+
+        this._protocol = writeBehavior.getProtocol();
         this._batchSize = writeBehavior.getBatchSize();
 
         //truncate the table if requested
@@ -63,7 +66,6 @@ public class FlightDataWriterFactory implements DataWriterFactory {
      */
     @Override
     public DataWriter<InternalRow> createWriter(int partitionId, long taskId) {
-        //TODO: remove _jsonSchema
-        return new FlightDataWriter(partitionId, taskId, this._configuration, this._dataSchema, this._jsonSchema, this._stmt.getStatement(), this._batchSize);
+        return new FlightDataWriter(partitionId, taskId, this._configuration, this._dataSchema, this._arrowSchema, this._protocol, this._stmt, this._batchSize);
     }
 }

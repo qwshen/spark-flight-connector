@@ -6,7 +6,8 @@ import java.io.Serializable;
  * Defines the write-behavior
  */
 public class WriteBehavior implements Serializable {
-    private final int _numPartitions;
+    private final WriteProtocol _protocol;
+
     private final int _batchSize;
     private final String[] _mergeByColumns;
 
@@ -15,22 +16,21 @@ public class WriteBehavior implements Serializable {
 
     /**
      * Construct a WriteBehavior
-     * @param numPartitions - the number of partitions when writing
      * @param batchSize - the size of each batch to be written
      * @param mergeByColumn - the columns on which to merge data into the target table
      */
-    public WriteBehavior(int numPartitions, int batchSize, String[] mergeByColumn) {
-        this._numPartitions = numPartitions;
+    public WriteBehavior(WriteProtocol protocol, int batchSize, String[] mergeByColumn) {
+        this._protocol = protocol;
         this._batchSize = batchSize;
         this._mergeByColumns = mergeByColumn;
     }
 
     /**
-     * Get the number of partitions
-     * @return - the number of partitions for writing
+     * Get the write-procotol
+     * @return - the protocol for writing
      */
-    public int getNumPartitions() {
-        return this._numPartitions;
+    public WriteProtocol getProtocol() {
+        return this._protocol;
     }
 
     /**
@@ -46,7 +46,7 @@ public class WriteBehavior implements Serializable {
      * @return - the columns on which to merge data into the target table
      */
     public String[] getMergeByColumns() {
-        return this._mergeByColumns;
+        return isTruncate() ? new String[0] : this._mergeByColumns;
     }
 
     /**

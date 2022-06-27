@@ -1,9 +1,6 @@
 package com.qwshen.flight.spark;
 
-import com.qwshen.flight.Configuration;
-import com.qwshen.flight.PartitionBehavior;
-import com.qwshen.flight.Table;
-import com.qwshen.flight.WriteBehavior;
+import com.qwshen.flight.*;
 import com.qwshen.flight.spark.read.FlightScanBuilder;
 import com.qwshen.flight.spark.write.FlightWriteBuilder;
 import org.apache.commons.lang.ArrayUtils;
@@ -33,11 +30,14 @@ public class FlightTable implements org.apache.spark.sql.connector.catalog.Table
     private static final String PARTITION_UPPER_BOUND = "partition.upperBound";
     private static final String PARTITION_PREDICATE = "partition.predicate";
     private static final String PARTITION_PREDICATES = "partition.predicates";
+
+    //write protocol
+    private static final String WRITE_PROTOCOL = "write.protocol";
+    //the batch-size for writing
+    private static final String BATCH_SIZE = "batch.size";
     //merge by keys
     private static final String MERGE_BY_COLUMN = "merge.byColumn";
     private static final String MERGE_BY_COLUMNS = "merge.byColumns";
-    //the batch-size for writing
-    private static final String BATCH_SIZE = "batch.size";
 
     //the configuration of remote flight service
     private final Configuration _configuration;
@@ -129,10 +129,10 @@ public class FlightTable implements org.apache.spark.sql.connector.catalog.Table
         //construct write-behavior
         CaseInsensitiveStringMap options = logicalWriteInfo.options();
         WriteBehavior writeBehavior = new WriteBehavior(
-            //by default, there is no re-partition
-            Integer.parseInt(options.getOrDefault(FlightTable.PARTITION_SIZE, "-1")),
+            //by default, the write-protocol is submitting literal sql statements
+            options.getOrDefault(FlightTable.WRITE_PROTOCOL, "sql").equalsIgnoreCase("arrow") ? WriteProtocol.ARROW : WriteProtocol.SQL,
             //by default, the batch-size is 10,240.
-            Integer.parseInt(options.getOrDefault(FlightTable.BATCH_SIZE, "10240")),
+            Integer.parseInt(options.getOrDefault(FlightTable.BATCH_SIZE, "1024")),
             (String[])ArrayUtils.addAll(
                 //filter out any merge.ByColumns for only merge.ByColumn
                 options.keySet().stream()

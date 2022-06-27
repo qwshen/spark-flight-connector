@@ -39,7 +39,7 @@ public class FlightScan implements Scan, Serializable {
      */
     @Override
     public String description() {
-        return this._table.getReadStatement();
+        return this._table.getQueryStatement();
     }
 
     /**

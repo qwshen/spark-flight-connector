@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 /**
  * Describes a flight table
@@ -21,7 +20,7 @@ public final class Table implements Serializable {
     private final String _columnQuote;
 
     //the read-statement
-    private ReadStatement _stmt;
+    private QueryStatement _stmt;
 
     //the spark schema
     private StructType _sparkSchema = null;
@@ -57,7 +56,7 @@ public final class Table implements Serializable {
      * Get the sql-statement for querying the table
      * @return - the physical query which will be submitted to remote flight service
      */
-    public String getReadStatement() {
+    public String getQueryStatement() {
         if (this._stmt == null) {
             throw new RuntimeException("The read statement is not valid.");
         }
@@ -97,13 +96,21 @@ public final class Table implements Serializable {
     }
 
     /**
+     * Get the character for quoting columns
+     * @return - the character for quoting columns
+     */
+    public String getColumnQuote() {
+        return this._columnQuote;
+    }
+
+    /**
      * Initialize the schema and end-points by submitting the physical query
      * @param config - the connection configuration
      */
     public void initialize(Configuration config) {
         try {
             Client client = Client.getOrCreate(config);
-            QueryEndpoints eps = client.getQueryEndpoints(this.getReadStatement());
+            QueryEndpoints eps = client.getQueryEndpoints(this.getQueryStatement());
 
             this._sparkSchema = new StructType(Arrays.stream(Field.from(eps.getSchema())).map(fs -> new StructField(fs.getName(), FieldType.toSpark(fs.getType()), true, Metadata.empty())).toArray(StructField[]::new));
             this._schema = eps.getSchema();
@@ -119,7 +126,7 @@ public final class Table implements Serializable {
         String selectStmt = forCount ? String.format("select count(*) from %s", this._name)
             : (fields == null || fields.length == 0) ? String.format("select * from %s", this._name)
             : String.format("select %s from %s", String.join(",", Arrays.stream(fields).map(column -> String.format("%s%s%s", this._columnQuote, column, this._columnQuote)).toArray(String[]::new)), this._name);
-        ReadStatement readStmt = new ReadStatement(selectStmt, filter);
+        QueryStatement readStmt = new QueryStatement(selectStmt, filter);
         boolean changed = readStmt.different(this._stmt);
         if (changed) {
             this._stmt = readStmt;
@@ -188,32 +195,6 @@ public final class Table implements Serializable {
             sb.append(String.format("%s%s%s in (%s)", this._columnQuote, in.attribute(), this._columnQuote, String.join(",", Arrays.stream(in.values()).map(v -> (v instanceof Number) ? v.toString() : String.format("'%s'", v.toString())).toArray(String[]::new))));
         }
         return sb.toString();
-    }
-
-    /**
-     * Prepare the WriteStatement
-     * @param mergeByColumns - the mergeBy columns on which to merge the data into target table.
-     * @param dataSchema - the schema of data being written
-     * @return - WriteStatement from the schema
-     */
-    public WriteStatement getWriteStatement(String[] mergeByColumns, StructType dataSchema) {
-        Supplier<WriteStatement> getInsertStatement = () -> {
-            java.util.Map<String, String> entries = new java.util.LinkedHashMap<>();
-            Arrays.stream(dataSchema.fields()).map(StructField::name).forEach(field -> entries.put(field, "?"));
-            return new WriteStatement(String.format("insert into %s(%s) values(%s)", this._name,
-                String.join(",", entries.keySet().stream().map(k -> String.format("%s%s%s", this._columnQuote, k, this._columnQuote)).toArray(String[]::new)), String.join(",", entries.values())), entries.keySet().toArray(new String[0]));
-        };
-        Function<String[], WriteStatement> getMergeStatement = (mergeBy) -> {
-            java.util.Map<String, Boolean> entries = new java.util.LinkedHashMap<>();
-            Arrays.stream(dataSchema.fields()).map(StructField::name).forEach(field -> entries.put(field, true));
-            Arrays.stream(mergeBy).forEach(key -> entries.put(key, false));
-
-            String src = String.format("select %s", String.join(",", entries.keySet().stream().map(k -> String.format("? as %s%s%s", this._columnQuote, k, this._columnQuote)).toArray(String[]::new)));
-            String on = String.join(" and ", Arrays.stream(mergeBy).map(field -> String.format("t.%s%s%s = s.%s%s%s", this._columnQuote, field, this._columnQuote, this._columnQuote, field, this._columnQuote)).toArray(String[]::new));
-            String upt = String.join(",", entries.entrySet().stream().filter(java.util.Map.Entry::getValue).map(java.util.Map.Entry::getKey).map(k -> String.format("t.%s%s%s = s.%s%s%s", this._columnQuote, k, this._columnQuote, this._columnQuote, k, this._columnQuote)).toArray(String[]::new));
-            return new WriteStatement(String.format("merge into %s t using (%s) s on %s when matched then update set %s when not matched then insert *", this._name, src, on, upt), entries.keySet().toArray(new String[0]));
-        };
-        return (mergeByColumns != null && mergeByColumns.length > 0) ? getMergeStatement.apply(mergeByColumns) : getInsertStatement.get();
     }
 
     /**

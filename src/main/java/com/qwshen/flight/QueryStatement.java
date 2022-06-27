@@ -5,7 +5,7 @@ import java.io.Serializable;
 /**
  * The read statement for querying data from remote flight service
  */
-public class ReadStatement implements Serializable {
+public class QueryStatement implements Serializable {
     private final String _stmt;
     private final String _where;
 
@@ -14,7 +14,7 @@ public class ReadStatement implements Serializable {
      * @param stmt - the select portion of a select-statement
      * @param where - the where portion of a select-statement
      */
-    public ReadStatement(String stmt, String where) {
+    public QueryStatement(String stmt, String where) {
         this._stmt = stmt;
         this._where = where;
     }
@@ -24,7 +24,7 @@ public class ReadStatement implements Serializable {
      * @param rs - one ReadStatement to be compared
      * @return - true if they are different
      */
-    public boolean different(ReadStatement rs) {
+    public boolean different(QueryStatement rs) {
         boolean changed = (rs == null || !rs._stmt.equalsIgnoreCase(this._stmt));
         if (!changed) {
             changed = (rs._where != null) ? !rs._where.equalsIgnoreCase(this._where) : this._where != null;
