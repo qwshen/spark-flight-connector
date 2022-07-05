@@ -1,11 +1,11 @@
 package com.qwshen.flight.spark.test
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.{col, lit, when}
 import org.scalatest.FunSuite
 
 class DremioTest extends FunSuite {
-  private val dremioHost = "192.168.0.26"
+  private val dremioHost = "192.168.0.11"
   private val dremioPort = "32010"
   private val dremioTlsEnabled = false;
   private val user = "test"
@@ -80,7 +80,7 @@ class DremioTest extends FunSuite {
     val df = this.execute(run)
     df.printSchema()
     df.count()
-    df.show()
+    df.show(false)
   }
 
   test("Run a query with simple list & struct types") {
@@ -193,31 +193,46 @@ class DremioTest extends FunSuite {
     df.show(false)
 
     val table = """"local-iceberg"."iceberg_db"."log_events_iceberg_table_events""""
-    val run: SparkSession => Unit = this.save(Map("table" -> table), df)
-    this.execute(run)
+    //overwrite
+    val overwrite: SparkSession => Unit = this.overwrite(Map("table" -> table), df)
+    this.execute(overwrite)
+    //append
+    val dfAppend = df.withColumn("event_id", col("event_id") + 10000000000L)
+    val append: SparkSession => Unit = this.append(Map("table" -> table), dfAppend)
+    this.execute(append)
+    //merge
+    val dfMerge = df
+      .withColumn("event_id", when(col("event_id") === lit(42204521L), col("event_id") + 1).otherwise(col("event_id")))
+      .withColumn("float_amount", col("float_amount") + 1111)
+      .withColumn("double_amount", col("double_amount") + 2222)
+      .withColumn("decimal_amount", col("decimal_amount") + 3333)
+    val merge: SparkSession => Unit = this.merge(Map("table" -> table, "merge.byColumn" -> "event_id"), dfMerge)
+    this.execute(merge)
   }
 
-  test("Write a table with list and struct") {
-    val table = """"local-iceberg"."iceberg_db"."log_events_iceberg_struct_list""""
-    val runLoad: SparkSession => DataFrame = this.load(Map("table" -> table), None, Nil)
-    val df = this.execute(runLoad).cache
-    df.printSchema()
-    df.show(false)
-
-    val run: SparkSession => Unit = this.save(Map("table" -> table), df)
-    this.execute(run)
-  }
-
-  test("Write a table with map") {
-    val table = """"local-iceberg"."iceberg_db"."log_events_iceberg_map""""
-    val runLoad: SparkSession => DataFrame = this.load(Map("table" -> table), None, Nil)
-    val df = this.execute(runLoad).cache
-    df.printSchema()
-    df.show(false)
-
-    val run: SparkSession => Unit = this.save(Map("table" -> table), df)
-    this.execute(run)
-  }
+//  inserting complex type not supported yet due to un-support on the flight service
+//
+//  test("Write a table with list and struct") {
+//    val table = """"local-iceberg"."iceberg_db"."log_events_iceberg_struct_list""""
+//    val runLoad: SparkSession => DataFrame = this.load(Map("table" -> table), None, Nil)
+//    val df = this.execute(runLoad).cache
+//    df.printSchema()
+//    df.show(false)
+//
+//    val run: SparkSession => Unit = this.overwrite(Map("table" -> table), df)
+//    this.execute(run)
+//  }
+//
+//  test("Write a table with map") {
+//    val table = """"local-iceberg"."iceberg_db"."log_events_iceberg_map""""
+//    val runLoad: SparkSession => DataFrame = this.load(Map("table" -> table), None, Nil)
+//    val df = this.execute(runLoad).cache
+//    df.printSchema()
+//    df.show(false)
+//
+//    val run: SparkSession => Unit = this.append(Map("table" -> table), df)
+//    this.execute(run)
+//  }
 
   //load the data-frame
   private def load(options: Map[String, String], where: Option[String], fields: Seq[String])(spark: SparkSession): DataFrame = {
@@ -232,8 +247,22 @@ class DremioTest extends FunSuite {
     }
   }
 
-  //save the data-frame
-  private def save(options: Map[String, String], df: DataFrame)(spark: SparkSession): Unit = {
+  //overwrite with the data-frame
+  private def overwrite(options: Map[String, String], df: DataFrame)(spark: SparkSession): Unit = {
+    df.write.format("flight")
+      .option("host", this.dremioHost).option("port", this.dremioPort).option("tls.enabled", dremioTlsEnabled).option("user", this.user).option("password", this.password)
+      .options(options)
+      .mode("overwrite").save
+  }
+  //append the data-frame
+  private def append(options: Map[String, String], df: DataFrame)(spark: SparkSession): Unit = {
+    df.write.format("flight")
+      .option("host", this.dremioHost).option("port", this.dremioPort).option("tls.enabled", dremioTlsEnabled).option("user", this.user).option("password", this.password)
+      .options(options)
+      .mode("append").save
+  }
+  //merge the data-frame
+  private def merge(options: Map[String, String], df: DataFrame)(spark: SparkSession): Unit = {
     df.write.format("flight")
       .option("host", this.dremioHost).option("port", this.dremioPort).option("tls.enabled", dremioTlsEnabled).option("user", this.user).option("password", this.password)
       .options(options)

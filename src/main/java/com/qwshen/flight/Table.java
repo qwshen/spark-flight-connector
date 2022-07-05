@@ -41,7 +41,7 @@ public final class Table implements Serializable {
         this._name = name;
         this._columnQuote = columnQuote;
 
-        this.prepareReadStatement(false, null, null, null);
+        this.prepareQueryStatement(false, null, null, null);
     }
 
     /**
@@ -122,17 +122,19 @@ public final class Table implements Serializable {
     }
 
     //Prepare the query for submitting to remote flight service
-    private boolean prepareReadStatement(Boolean forCount, String[] fields, String filter, PartitionBehavior partitionBehavior) {
+    private boolean prepareQueryStatement(Boolean forCount, String[] fields, String filter, PartitionBehavior partitionBehavior) {
         String selectStmt = forCount ? String.format("select count(*) from %s", this._name)
             : (fields == null || fields.length == 0) ? String.format("select * from %s", this._name)
             : String.format("select %s from %s", String.join(",", Arrays.stream(fields).map(column -> String.format("%s%s%s", this._columnQuote, column, this._columnQuote)).toArray(String[]::new)), this._name);
-        QueryStatement readStmt = new QueryStatement(selectStmt, filter);
-        boolean changed = readStmt.different(this._stmt);
+        QueryStatement stmt = new QueryStatement(selectStmt, filter);
+        boolean changed = stmt.different(this._stmt);
         if (changed) {
-            this._stmt = readStmt;
+            this._stmt = stmt;
         }
 
-        if (partitionBehavior != null && partitionBehavior.enabled()) {
+        if (forCount) {
+            this._partitionStmts.clear();
+        } else if (partitionBehavior != null && partitionBehavior.enabled()) {
             String baseWhere = (filter != null && !filter.isEmpty()) ? String.format("(%s) and ", filter) : "";
             Function<String, StructField> find = (name) -> Arrays.stream(this._sparkSchema.fields()).filter(field -> field.name().equalsIgnoreCase(name)).findFirst().orElse(null);
             String[] predicates = partitionBehavior.predicateDefined()
@@ -209,7 +211,7 @@ public final class Table implements Serializable {
         if ((pushedFilter == null || pushedFilter.isEmpty()) && (pushedFields == null || pushedFields.length == 0) && !pushedCount) {
             return false;
         }
-        return this.prepareReadStatement(pushedCount, pushedFields, pushedFilter, partitionBehavior);
+        return this.prepareQueryStatement(pushedCount, pushedFields, pushedFilter, partitionBehavior);
     }
 
     /**
