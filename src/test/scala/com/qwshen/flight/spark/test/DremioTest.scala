@@ -2,9 +2,9 @@ package com.qwshen.flight.spark.test
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.{col, lit, when}
-import org.scalatest.FunSuite
+import org.scalatest.{BeforeAndAfterEach, FunSuite}
 
-class DremioTest extends FunSuite {
+class DremioTest extends FunSuite with BeforeAndAfterEach {
   private val dremioHost = "192.168.0.11"
   private val dremioPort = "32010"
   private val dremioTlsEnabled = false;
@@ -119,7 +119,7 @@ class DremioTest extends FunSuite {
     val df = this.execute(run)
     df.printSchema()
     df.count()
-    df.show()
+    df.show(10)
   }
 
   test("Query a table with partitioning by column having date-time lower-bound & upper-bound") {
@@ -128,7 +128,7 @@ class DremioTest extends FunSuite {
     val df = this.execute(run)
     df.printSchema()
     df.count()
-    df.show()
+    df.show(10)
   }
 
   test("Query a table with partitioning by column having long lower-bound & upper-bound") {
@@ -210,29 +210,28 @@ class DremioTest extends FunSuite {
     this.execute(merge)
   }
 
-//  inserting complex type not supported yet due to un-support on the flight service
-//
-//  test("Write a table with list and struct") {
-//    val table = """"local-iceberg"."iceberg_db"."log_events_iceberg_struct_list""""
-//    val runLoad: SparkSession => DataFrame = this.load(Map("table" -> table), None, Nil)
-//    val df = this.execute(runLoad).cache
-//    df.printSchema()
-//    df.show(false)
-//
-//    val run: SparkSession => Unit = this.overwrite(Map("table" -> table), df)
-//    this.execute(run)
-//  }
-//
-//  test("Write a table with map") {
-//    val table = """"local-iceberg"."iceberg_db"."log_events_iceberg_map""""
-//    val runLoad: SparkSession => DataFrame = this.load(Map("table" -> table), None, Nil)
-//    val df = this.execute(runLoad).cache
-//    df.printSchema()
-//    df.show(false)
-//
-//    val run: SparkSession => Unit = this.append(Map("table" -> table), df)
-//    this.execute(run)
-//  }
+  //inserting complex type not supported yet due to un-support on the flight service
+  ignore("Write a table with list and struct") {
+    val table = """"local-iceberg"."iceberg_db"."log_events_iceberg_struct_list""""
+    val runLoad: SparkSession => DataFrame = this.load(Map("table" -> table), None, Nil)
+    val df = this.execute(runLoad).cache
+    df.printSchema()
+    df.show(false)
+
+    val run: SparkSession => Unit = this.overwrite(Map("table" -> table), df)
+    this.execute(run)
+  }
+
+  ignore("Write a table with map") {
+    val table = """"local-iceberg"."iceberg_db"."log_events_iceberg_map""""
+    val runLoad: SparkSession => DataFrame = this.load(Map("table" -> table), None, Nil)
+    val df = this.execute(runLoad).cache
+    df.printSchema()
+    df.show(false)
+
+    val run: SparkSession => Unit = this.append(Map("table" -> table), df)
+    this.execute(run)
+  }
 
   //load the data-frame
   private def load(options: Map[String, String], where: Option[String], fields: Seq[String])(spark: SparkSession): DataFrame = {
@@ -269,17 +268,10 @@ class DremioTest extends FunSuite {
       .mode("append").save
   }
 
+  private var spark: SparkSession = _
   //create spark-session
-  private def createSparkSession(): SparkSession = SparkSession.builder.appName("test").master("local[*]").getOrCreate
+  override def beforeEach(): Unit = spark = SparkSession.builder.master("local[*]").config("spark.executor.memory", "24g").config("spark.driver.memory", "24g").appName("test").getOrCreate
   //execute a job
-  private def execute[T](run: SparkSession => T): T = {
-    val spark = createSparkSession();
-    try {
-      run(spark)
-    } finally {
-      //stopSparkSession(spark)
-    }
-  }
-  //stop spark-session
-  private def stopSparkSession(spark: SparkSession): Unit = spark.stop()
+  private def execute[T](run: SparkSession => T): T = run(spark)
+  override def afterEach(): Unit = spark.stop()
 }

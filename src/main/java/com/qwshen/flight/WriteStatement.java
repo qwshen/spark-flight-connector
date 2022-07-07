@@ -6,6 +6,8 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.DateTimeUtils;
 import org.apache.spark.sql.types.*;
+
+import java.io.IOException;
 import java.io.Serializable;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -86,6 +88,23 @@ public class WriteStatement implements Serializable {
     }
 
     /**
+     * Get the data schema
+     * @return - the data schema
+     */
+    public StructType getDataSchema() {
+        return this._dataSchema;
+    }
+
+    /**
+     * Get the arrow-schema
+     * @return - arrow schema
+     * @throws IOException - thrown when the arrow-schema is invalid
+     */
+    public Schema getArrowSchema() throws IOException {
+        return Schema.fromJSON(this._arrowSchema);
+    }
+
+    /**
      * Get the statement
      * @return - the merge into or insert into statement
      */
@@ -96,12 +115,12 @@ public class WriteStatement implements Serializable {
     /**
      * Fill the statment with data
      * @param rows - the rows of data
-     * @param dataFields - the fields of the data
      * @param arrowFields - the fields of output
      * @return - a statement with data
      */
-    public String fillStatement(InternalRow[] rows, StructField[] dataFields, org.apache.arrow.vector.types.pojo.Field[] arrowFields) {
+    public String fillStatement(InternalRow[] rows, org.apache.arrow.vector.types.pojo.Field[] arrowFields) {
         Function<String, Optional<org.apache.arrow.vector.types.pojo.Field>> find = (name) -> Arrays.stream(arrowFields).filter(x -> x.getName().equalsIgnoreCase(name)).findFirst();
+        StructField[] dataFields = this._dataSchema.fields();
         Object[] columns = IntStream.range(0, dataFields.length).mapToObj(idx -> {
             Optional<org.apache.arrow.vector.types.pojo.Field> arrowField = find.apply(dataFields[idx].name());
             if (!arrowField.isPresent()) {

@@ -24,7 +24,7 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
     private final long _taskId;
 
     private final StructType _dataSchema;
-    private Schema _arrowSchema;
+    private final Schema _arrowSchema;
 
     private final WriteStatement _stmt;
     private final int _batchSize;
@@ -49,19 +49,14 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
      * @param stmt - the write-statement
      * @param batchSize - the batch size for the write
      */
-    public FlightDataWriter(int partitionId, long taskId, Configuration configuration, StructType dataSchema, String arrowSchema, WriteProtocol protocol, WriteStatement stmt, int batchSize) {
+    public FlightDataWriter(int partitionId, long taskId, Configuration configuration, WriteStatement stmt, WriteProtocol protocol, int batchSize) {
         this._partitionId = partitionId;
         this._taskId = taskId;
 
-        this._dataSchema = dataSchema;
-        try {
-            this._arrowSchema = Schema.fromJSON(arrowSchema);
-        } catch (Exception e) {
-            throw new RuntimeException("The arrow schema is inavlid.", e);
-        }
         this._stmt = stmt;
         this._batchSize = batchSize;
 
+        this._dataSchema = this._stmt.getDataSchema();;
         this._client = Client.getOrCreate(configuration);
         if (protocol == WriteProtocol.ARROW) {
             this._preparedStmt = this._client.getPreparedStatement(this._stmt.getStatement());
@@ -69,6 +64,12 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
             this._fields = this._arrowSchema.getFields().toArray(new Field[0]);
             this._root = VectorSchemaRoot.create(this._arrowSchema, new RootAllocator(Integer.MAX_VALUE));
             this._vector = Vector.getOrCreate();
+        } else {
+            try {
+                this._arrowSchema = this._stmt.getArrowSchema();
+            } catch (Exception e) {
+                throw new RuntimeException("The arrow schema is invalid.", e);
+            }
         }
         this._rows = new java.util.ArrayList<>();
     }
@@ -88,7 +89,7 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
     }
     /**
      * Write out all rows
-     * @param rows
+     * @param rows - the data rows
      */
     private void write(InternalRow[] rows) {
         if (this._vector != null) {
@@ -103,7 +104,7 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
                 this._root.clear();
             }
         } else {
-            this._client.execute(this._stmt.fillStatement(rows, this._dataSchema.fields(), this._arrowSchema.getFields().toArray(new Field[0])));
+            this._client.execute(this._stmt.fillStatement(rows, this._arrowSchema.getFields().toArray(new Field[0])));
         }
         this._count += rows.length;
     }

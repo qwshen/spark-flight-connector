@@ -1,7 +1,6 @@
 package com.qwshen.flight.spark.write;
 
 import com.qwshen.flight.*;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.write.DataWriter;
 import org.apache.spark.sql.connector.write.DataWriterFactory;
@@ -14,8 +13,6 @@ import java.util.Arrays;
  */
 public class FlightDataWriterFactory implements DataWriterFactory {
     private final Configuration _configuration;
-    private final StructType _dataSchema;
-    private final String _arrowSchema;
 
     private final WriteStatement _stmt;
     private final WriteProtocol _protocol;
@@ -23,19 +20,15 @@ public class FlightDataWriterFactory implements DataWriterFactory {
 
     /**
      * Construct a flight-write
-     * @param configuration - the configuraton of remote flight service
+     * @param configuration - the configuration of remote flight service
      * @param table - the table object for describing the target flight table
      * @param dataSchema - the schema of data being written
      * @param writeBehavior - the write-behavior
      */
     public FlightDataWriterFactory(Configuration configuration, Table table, StructType dataSchema, WriteBehavior writeBehavior) {
         this._configuration = configuration;
-        this._dataSchema = dataSchema;
-        this._arrowSchema = table.getSchema().toJson();
-
         this._stmt = (writeBehavior.getMergeByColumns() == null || writeBehavior.getMergeByColumns().length == 0) ? new WriteStatement(table.getName(), dataSchema, table.getSchema(), table.getColumnQuote())
             : new WriteStatement(table.getName(), writeBehavior.getMergeByColumns(), dataSchema, table.getSchema(), table.getColumnQuote());
-
         this._protocol = writeBehavior.getProtocol();
         this._batchSize = writeBehavior.getBatchSize();
 
@@ -66,6 +59,6 @@ public class FlightDataWriterFactory implements DataWriterFactory {
      */
     @Override
     public DataWriter<InternalRow> createWriter(int partitionId, long taskId) {
-        return new FlightDataWriter(partitionId, taskId, this._configuration, this._dataSchema, this._arrowSchema, this._protocol, this._stmt, this._batchSize);
+        return new FlightDataWriter(partitionId, taskId, this._configuration, this._stmt, this._protocol, this._batchSize);
     }
 }
