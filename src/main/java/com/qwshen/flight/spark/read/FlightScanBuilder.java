@@ -6,6 +6,7 @@ import com.qwshen.flight.Table;
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation;
 import org.apache.spark.sql.connector.read.*;
 import org.apache.spark.sql.sources.*;
+import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import java.util.Arrays;
 import java.util.Objects;
@@ -22,7 +23,7 @@ public final class FlightScanBuilder implements ScanBuilder, SupportsPushDownFil
     //the pushed-down filters
     private Filter[] _pdFilters = new Filter[0];
     //the pushed-down columns
-    private String[] _pdColumns = new String[0];
+    private StructField[] _pdColumns = new StructField[0];
     //only supports pushed-down COUNT
     private boolean _pdCount = false;
 
@@ -93,7 +94,7 @@ public final class FlightScanBuilder implements ScanBuilder, SupportsPushDownFil
      */
     @Override
     public void pruneColumns(StructType columns) {
-        this._pdColumns = columns.fieldNames();
+        this._pdColumns = columns.fields();
     }
 
     /**

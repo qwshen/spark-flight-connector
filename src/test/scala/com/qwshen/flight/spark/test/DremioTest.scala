@@ -1,7 +1,7 @@
 package com.qwshen.flight.spark.test
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.functions.{col, lit, when}
+import org.apache.spark.sql.functions.{col, lit, struct, when, map, array}
 import org.scalatest.{BeforeAndAfterEach, FunSuite}
 
 class DremioTest extends FunSuite with BeforeAndAfterEach {
@@ -125,7 +125,7 @@ class DremioTest extends FunSuite with BeforeAndAfterEach {
   test("Query a table with partitioning by column having date-time lower-bound & upper-bound") {
     val table = """"azure-wstorage".input.events"""
     val run: SparkSession => DataFrame = this.load(Map("table" -> table, "partition.byColumn" -> "start_time", "partition.size" -> "6", "partition.lowerBound" -> "1912-01-01T05:59:24.003Z", "partition.upperBound" -> "3001-04-12T05:00:00.002Z"), None, Nil)
-    val df = this.execute(run)
+    val df = this.execute(run)//.filter(col("event_id") === lit(3928440935L))
     df.printSchema()
     df.count()
     df.show(10)
@@ -210,6 +210,50 @@ class DremioTest extends FunSuite with BeforeAndAfterEach {
     this.execute(merge)
   }
 
+  test("Append a heavy table") {
+    val srcTable = """"azure-wstorage".input.events"""
+    val runLoad: SparkSession => DataFrame = this.load(Map("table" -> srcTable), None, Nil)
+    val df = this.execute(runLoad).cache
+
+    //append
+    var dstTable = """"local-iceberg"."iceberg_db"."iceberg_events""""
+    val dfAppend = df.limit(10000)
+      .withColumn("event_id", col("event_id") + 1000000000L)
+      .withColumn("remark", lit("new"))
+    val overwrite: SparkSession => Unit = this.overwrite(Map("table" -> dstTable, "batch.size" -> "768"), dfAppend)
+    this.execute(overwrite)
+  }
+
+  test("Append a heavy table with complex-type --> string") {
+    val srcTable = """"azure-wstorage".input.events"""
+    val runLoad: SparkSession => DataFrame = this.load(Map("table" -> srcTable), None, Nil)
+    val df = this.execute(runLoad).filter(col("user_id").isin("781622845", "1519813515", "1733137333", "3709565024")).cache
+
+    //the target table
+    var dstTable = """"local-iceberg"."iceberg_db"."iceberg_events""""
+
+    //append for struct
+    val dfStruct = df.filter(col("user_id") === lit("781622845") || col("user_id") === lit("3709565024"))
+      .withColumn("event_id", col("event_id") + 1000000000L)
+      .withColumn("remark", struct(col("city").as("city"), col("state").as("state"), col("country").as("country")))
+    val appendStruct: SparkSession => Unit = this.append(Map("table" -> dstTable, "merge.byColumns" -> "event_id,user_id"), dfStruct)
+    this.execute(appendStruct)
+
+    //append for map
+    val dfMap = df.filter(col("user_id") === lit("1519813515"))
+      .withColumn("event_id", col("event_id") + 1000000000L)
+      .withColumn("remark", map(lit("city"), col("city"), lit("state"), col("state"), lit("country"), col("country")))
+    val appendMap: SparkSession => Unit = this.append(Map("table" -> dstTable, "merge.byColumns_1" -> "event_id", "merge.byColumns_2" -> "user_id"), dfMap)
+    this.execute(appendMap)
+
+//    //append for array
+    val dfArray = df.filter(col("user_id") === lit("1733137333"))
+      .withColumn("event_id", col("event_id") + 1000000000L)
+      .withColumn("remark", array(col("city"), col("state"), col("country")))
+    val appendArray: SparkSession => Unit = this.append(Map("table" -> dstTable, "merge.byColumns" -> "event_id;user_id"), dfArray)
+    this.execute(appendArray)
+  }
+
   //inserting complex type not supported yet due to un-support on the flight service
   ignore("Write a table with list and struct") {
     val table = """"local-iceberg"."iceberg_db"."log_events_iceberg_struct_list""""
@@ -249,22 +293,22 @@ class DremioTest extends FunSuite with BeforeAndAfterEach {
   //overwrite with the data-frame
   private def overwrite(options: Map[String, String], df: DataFrame)(spark: SparkSession): Unit = {
     df.write.format("flight")
-      .option("host", this.dremioHost).option("port", this.dremioPort).option("tls.enabled", dremioTlsEnabled).option("user", this.user).option("password", this.password)
-      .options(options)
+        .option("host", this.dremioHost).option("port", this.dremioPort).option("tls.enabled", dremioTlsEnabled).option("user", this.user).option("password", this.password)
+        .options(options)
       .mode("overwrite").save
   }
   //append the data-frame
   private def append(options: Map[String, String], df: DataFrame)(spark: SparkSession): Unit = {
     df.write.format("flight")
-      .option("host", this.dremioHost).option("port", this.dremioPort).option("tls.enabled", dremioTlsEnabled).option("user", this.user).option("password", this.password)
-      .options(options)
+        .option("host", this.dremioHost).option("port", this.dremioPort).option("tls.enabled", dremioTlsEnabled).option("user", this.user).option("password", this.password)
+        .options(options)
       .mode("append").save
   }
   //merge the data-frame
   private def merge(options: Map[String, String], df: DataFrame)(spark: SparkSession): Unit = {
     df.write.format("flight")
-      .option("host", this.dremioHost).option("port", this.dremioPort).option("tls.enabled", dremioTlsEnabled).option("user", this.user).option("password", this.password)
-      .options(options)
+        .option("host", this.dremioHost).option("port", this.dremioPort).option("tls.enabled", dremioTlsEnabled).option("user", this.user).option("password", this.password)
+        .options(options)
       .mode("append").save
   }
 

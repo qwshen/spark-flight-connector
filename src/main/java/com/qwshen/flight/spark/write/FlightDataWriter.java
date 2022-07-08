@@ -33,7 +33,7 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
     private Field[] _fields = null;
     private FlightSqlClient.PreparedStatement _preparedStmt = null;
     private VectorSchemaRoot _root = null;
-    private Vector _vector = null;
+    private Conversion _conversion = null;
 
     private final java.util.List<InternalRow> _rows;
 
@@ -63,7 +63,7 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
             this._arrowSchema = this._preparedStmt.getParameterSchema();
             this._fields = this._arrowSchema.getFields().toArray(new Field[0]);
             this._root = VectorSchemaRoot.create(this._arrowSchema, new RootAllocator(Integer.MAX_VALUE));
-            this._vector = Vector.getOrCreate();
+            this._conversion = Conversion.getOrCreate();
         } else {
             try {
                 this._arrowSchema = this._stmt.getArrowSchema();
@@ -92,9 +92,9 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
      * @param rows - the data rows
      */
     private void write(InternalRow[] rows) {
-        if (this._vector != null) {
+        if (this._conversion != null) {
             Function<String, DataType> dtFind = (name) -> this._dataSchema.find(field -> field.name().equalsIgnoreCase(name)).map(StructField::dataType).get();
-            IntStream.range(0, this._fields.length).forEach(idx -> this._vector.populate(this._root.getVector(idx), rows, idx, dtFind.apply(this._fields[idx].getName())));
+            IntStream.range(0, this._fields.length).forEach(idx -> this._conversion.populate(this._root.getVector(idx), rows, idx, dtFind.apply(this._fields[idx].getName())));
             this._root.setRowCount(rows.length);
             this._preparedStmt.setParameters(this._root);
             try {

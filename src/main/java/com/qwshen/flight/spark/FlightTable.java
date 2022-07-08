@@ -56,7 +56,8 @@ public class FlightTable implements org.apache.spark.sql.connector.catalog.Table
         this._configuration = configuration;
         this._table = table;
 
-        //the data-source supports batch read/write, truncate the table table
+        //the data-source supports batch read/write, truncate the table
+        this._capabilities.add(TableCapability.ACCEPT_ANY_SCHEMA);
         this._capabilities.add(TableCapability.BATCH_READ);
         this._capabilities.add(TableCapability.BATCH_WRITE);
         this._capabilities.add(TableCapability.TRUNCATE);
@@ -107,7 +108,7 @@ public class FlightTable implements org.apache.spark.sql.connector.catalog.Table
                     .filter(k -> !k.equalsIgnoreCase(FlightTable.PARTITION_PREDICATES) && k.toLowerCase().startsWith(FlightTable.PARTITION_PREDICATE.toLowerCase()))
                     .map(k -> options.getOrDefault(k, "")).filter(p -> !p.isEmpty()).toArray(String[]::new),
                 //combine with partition.predicates
-                options.containsKey(FlightTable.PARTITION_PREDICATES) ? options.get(FlightTable.PARTITION_PREDICATES).split(";") : new String[0]
+                options.containsKey(FlightTable.PARTITION_PREDICATES) ? options.get(FlightTable.PARTITION_PREDICATES).split("[;|,]") : new String[0]
             )
         );
         return new FlightScanBuilder(this._configuration, this._table, partitionBehavior);
@@ -139,7 +140,7 @@ public class FlightTable implements org.apache.spark.sql.connector.catalog.Table
                         .filter(k -> !k.equalsIgnoreCase(FlightTable.MERGE_BY_COLUMNS) && k.toLowerCase().startsWith(FlightTable.MERGE_BY_COLUMN.toLowerCase()))
                     .map(k -> options.getOrDefault(k, "")).filter(p -> !p.isEmpty()).toArray(String[]::new),
                 //combine with merge.ByColumns
-                options.containsKey(FlightTable.MERGE_BY_COLUMNS) ? options.get(FlightTable.MERGE_BY_COLUMNS).split(";") : new String[0]
+                options.containsKey(FlightTable.MERGE_BY_COLUMNS) ? options.get(FlightTable.MERGE_BY_COLUMNS).split("[;|,]") : new String[0]
             )
         );
         return new FlightWriteBuilder(this._configuration, this._table, logicalWriteInfo.schema(), writeBehavior);

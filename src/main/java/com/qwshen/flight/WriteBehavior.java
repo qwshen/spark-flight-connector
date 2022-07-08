@@ -53,6 +53,9 @@ public class WriteBehavior implements Serializable {
      * set the flag to truncate the target table
      */
     public void truncate() {
+        if (this._mergeByColumns != null && this._mergeByColumns.length > 0) {
+            throw new RuntimeException("The merge-by can only work with append mode.");
+        }
         this._truncate = true;
     }
 

@@ -8,6 +8,7 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.IntStream;
@@ -97,18 +98,14 @@ public class PartitionBehavior implements Serializable {
 
     /**
      * Calculate the predicates upon by-column, size, lower-bound & upper-bound
-     * @param partitionColumn - the column by which to partition rows
+     * @param dataFields - The fields from the select-list. The column for partitioning may or may not on the select-list.
      * @return - the predicates which partitions the rows
      */
-    public String[] calculatePredicates(StructField partitionColumn) {
-        if (this._lowerBound != null && this._lowerBound.length() > 0 && this._upperBound != null && this._upperBound.length() > 0) {
-            String[] predicates = null;
-            if (partitionColumn == null) {
-                predicates = probeLongPredicates().orElse(probeDateTimePredicates().orElse(probeDoublePredicates().orElse(null)));
-                if (predicates == null) {
-                    throw new RuntimeException("The lower-bound and upper-bound for auto-partitioning are not supported. They can only be number or date-time.");
-                }
-            } else {
+    public String[] calculatePredicates(StructField[] dataFields) {
+        String[] predicates = null;
+        if (this._lowerBound != null && this._lowerBound.length() > 0 && this._upperBound != null && this._upperBound.length() > 0 && dataFields != null) {
+            StructField partitionColumn = Arrays.stream(dataFields).filter(field -> field.name().equalsIgnoreCase(this._byColumn)).findFirst().orElse(null);
+            if (partitionColumn != null) {
                 DataType dataType = partitionColumn.dataType();
                 if (dataType.equals(DataTypes.ByteType) || dataType.equals(DataTypes.ShortType) || dataType.equals(DataTypes.IntegerType) || dataType.equals(DataTypes.LongType)) {
                     predicates = probeLongPredicates().orElse(probeDoublePredicates().orElse(null));
@@ -117,15 +114,14 @@ public class PartitionBehavior implements Serializable {
                 } else if (dataType.equals(DataTypes.DateType) || dataType.equals(DataTypes.TimestampType)) {
                     predicates = probeDateTimePredicates().orElse(null);
                 }
-                if (predicates == null) {
-                    throw new RuntimeException("The lower-bound and/or upper-bound for auto-partitioning are not valid upon the data type of the partitioning-column - " + dataType);
-                }
             }
-            return predicates;
-        } else {
-            Function<Integer, String> hashPredicate = (idx) -> String.format("(%s(%s) %% %d + %d) %% %d = %d", this._hashFunc, this._byColumn, this._size, this._size, this._size, idx);
-            return IntStream.range(0, this._size).mapToObj(hashPredicate::apply).toArray(String[]::new);
         }
+        if (predicates == null) {
+            //by default, hash-partitioning is applied
+            Function<Integer, String> hashPredicate = (idx) -> String.format("(%s(%s) %% %d + %d) %% %d = %d", this._hashFunc, this._byColumn, this._size, this._size, this._size, idx);
+            predicates = IntStream.range(0, this._size).mapToObj(hashPredicate::apply).toArray(String[]::new);
+        }
+        return predicates;
     }
 
     //probe Long predicates

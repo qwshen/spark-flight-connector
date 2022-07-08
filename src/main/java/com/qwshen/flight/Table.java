@@ -122,10 +122,10 @@ public final class Table implements Serializable {
     }
 
     //Prepare the query for submitting to remote flight service
-    private boolean prepareQueryStatement(Boolean forCount, String[] fields, String filter, PartitionBehavior partitionBehavior) {
+    private boolean prepareQueryStatement(Boolean forCount, StructField[] fields, String filter, PartitionBehavior partitionBehavior) {
         String selectStmt = forCount ? String.format("select count(*) from %s", this._name)
             : (fields == null || fields.length == 0) ? String.format("select * from %s", this._name)
-            : String.format("select %s from %s", String.join(",", Arrays.stream(fields).map(column -> String.format("%s%s%s", this._columnQuote, column, this._columnQuote)).toArray(String[]::new)), this._name);
+            : String.format("select %s from %s", String.join(",", Arrays.stream(fields).map(column -> String.format("%s%s%s", this._columnQuote, column.name(), this._columnQuote)).toArray(String[]::new)), this._name);
         QueryStatement stmt = new QueryStatement(selectStmt, filter);
         boolean changed = stmt.different(this._stmt);
         if (changed) {
@@ -136,9 +136,8 @@ public final class Table implements Serializable {
             this._partitionStmts.clear();
         } else if (partitionBehavior != null && partitionBehavior.enabled()) {
             String baseWhere = (filter != null && !filter.isEmpty()) ? String.format("(%s) and ", filter) : "";
-            Function<String, StructField> find = (name) -> Arrays.stream(this._sparkSchema.fields()).filter(field -> field.name().equalsIgnoreCase(name)).findFirst().orElse(null);
-            String[] predicates = partitionBehavior.predicateDefined()
-                ? partitionBehavior.getPredicates() : partitionBehavior.calculatePredicates(find.apply(partitionBehavior.getByColumn()));
+            Function<String, StructField> find = (name) -> (fields != null) ? Arrays.stream(fields).filter(field -> field.name().equalsIgnoreCase(name)).findFirst().orElse(null) : null;
+            String[] predicates = partitionBehavior.predicateDefined() ? partitionBehavior.getPredicates() : partitionBehavior.calculatePredicates(fields);
             Arrays.stream(predicates).forEach(predicate -> this._partitionStmts.add(String.format("%s where %s(%s)", selectStmt, baseWhere, predicate)));
         }
         return changed;
@@ -207,7 +206,7 @@ public final class Table implements Serializable {
      * @param partitionBehavior - the partitioning behavior
      * @return - true if initialization is required
      */
-    public Boolean probe(String pushedFilter, String[] pushedFields, boolean pushedCount, PartitionBehavior partitionBehavior) {
+    public Boolean probe(String pushedFilter, StructField[] pushedFields, boolean pushedCount, PartitionBehavior partitionBehavior) {
         if ((pushedFilter == null || pushedFilter.isEmpty()) && (pushedFields == null || pushedFields.length == 0) && !pushedCount) {
             return false;
         }

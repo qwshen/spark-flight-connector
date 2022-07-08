@@ -46,6 +46,6 @@ public class FieldVector implements Serializable {
      * @return - an instance of the custom FieldVector
      */
     public static FieldVector fromArrow(org.apache.arrow.vector.FieldVector vector, FieldType type, int rowCount) {
-        return Vector.getOrCreate().convert(vector, type, rowCount);
+        return Conversion.getOrCreate().convert(vector, type, rowCount);
     }
 }
