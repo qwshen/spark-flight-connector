@@ -147,7 +147,6 @@ or
 ```scala
 df.write
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
-    .option("table", """"e-commerce".orders""")
     .option("merge.byColumns", "order_id,customer_id").optoin("column.quote", "\"")
     .options(options)  //other options
     .mode("append")
