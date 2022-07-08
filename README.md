@@ -212,4 +212,4 @@ When the connector is writing data, the schema of the target table is retrieved 
 - In sql mode (write.protocol = sql), all complex types (struct, map & list) are converted to json string.
 - etc.
 
-Note: for Dremio Flight (up to v22.0.0), iceberg tables don't support complex types yet, and only accepts literal sql-statements for DML operations which require write.protocol = sql.
+Note: for Dremio Flight (up to v22.0.0), iceberg tables don't support writing complex types yet, and only accepts literal sql-statements for DML operations which require write.protocol = sql.
