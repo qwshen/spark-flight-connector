@@ -35,7 +35,7 @@ The following properties are optional:
   select id, "departure-time", "arrival-time" from flights where "flight-no" = 'ABC-21';
 ```
 
-### Load data
+### 1. Load data
 ```scala
 val df = spark.read.format("flight")
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
@@ -66,7 +66,7 @@ val df = spark.read
 df.show
 ```
 
-#### Partitioning:
+#### - Partitioning:
 
 By default, the connector respects the partitioning from the source arrow-flight end-points, data from each end-point is put to one partition. However, the partitioning behavior can be customized with the following properties:
 - partition.size: the number of partitions in the final dataframe. The default is 6.
@@ -112,7 +112,7 @@ spark.read
 Note: when lowerBound & upperBound with byColumn or predicates are used, they are eventually filters applied on the query to fetch data which may impact the final result-set. Please make sure these partitioning options
 are not affecting the final output, but they are only for partitioning the output.
 
-#### Pushing filter & columns down
+#### - Pushing filter & columns down
 The filters and required-columns are pushed down when they are provided. This limits the data at the source which greatly decreases the amount of data being transferred and processed.
 ```scala
 spark.read
@@ -123,7 +123,7 @@ spark.read
   .select("order_id", "customer_id", "payment_method", "order_amount", "order_date")  //required-columns are pushed down 
 ```
 
-### Write data
+### 2. Write data
 ```scala
 df.write.format("flight")
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
@@ -172,8 +172,8 @@ df.write
   .flight(""""e-commerce".orders""")
 ```
 
-### Data-type Mapping
-#### Arrow-Flight >> Spark
+### 3. Data-type Mapping
+#### - Arrow-Flight >> Spark
 
  Arrow-Flight | Spark
  --- | --- 
@@ -205,7 +205,7 @@ map | map
 
 Note: for Dremio Flight (up to v22.0.0), the Map type is converted to Struct. The connector detects the pattern and converts back to Map when reading data, and adapts to Struct when writing data.
 
-#### Spark >> Arrow-Flight
+#### - Spark >> Arrow-Flight
 
 When the connector is writing data, the schema of the target table is retrieved first, then the connector tries to adapt the source field to the type of the target, so the types of source and target must be compatible. Otherwise runtime exception will be thrown. Such as
 - Spark Int adapts to Arrow-Flight Decimal;
