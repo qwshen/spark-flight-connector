@@ -58,7 +58,7 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
 
         this._dataSchema = this._stmt.getDataSchema();;
         this._client = Client.getOrCreate(configuration);
-        if (protocol == WriteProtocol.ARROW) {
+        if (protocol == WriteProtocol.PREPARED_SQL) {
             this._preparedStmt = this._client.getPreparedStatement(this._stmt.getStatement());
             this._arrowSchema = this._preparedStmt.getParameterSchema();
             this._fields = this._arrowSchema.getFields().toArray(new Field[0]);

@@ -16,11 +16,18 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Describes the flight-table
  */
 public class FlightTable implements org.apache.spark.sql.connector.catalog.Table, SupportsRead, SupportsWrite {
+    //the default type-mapping
+    private static final String _TYPE_MAPPING_DEFAULT = "BIT:BOOLEAN;"
+        + "LARGEVARCHAR:VARCHAR; VARCHAR:VARCHAR;"
+        + "TINYINT:INT; SMALLINT:INT; UINT1:INT; UINT2:INT; UINT4:INT; UINT8:INT; INT:INT; BIGINT:BIGINT;"
+        + "FLOAT4:FLOAT; FLOAT8:DOUBLE; DECIMAL:DECIMAL; DECIMAL256:DECIMAL;"
+        + "DATE:DATE; TIME:TIME; TIMESTAMP:TIMESTAMP";
     //the number of partitions when reading and writing
     private static final String PARTITION_SIZE = "partition.size";
     //the option keys for partitioning
@@ -33,6 +40,8 @@ public class FlightTable implements org.apache.spark.sql.connector.catalog.Table
 
     //write protocol
     private static final String WRITE_PROTOCOL = "write.protocol";
+    //type mapping
+    private static final String WRITE_TYPE_MAPPING = "write.typeMapping";
     //the batch-size for writing
     private static final String BATCH_SIZE = "batch.size";
     //merge by keys
@@ -131,7 +140,7 @@ public class FlightTable implements org.apache.spark.sql.connector.catalog.Table
         CaseInsensitiveStringMap options = logicalWriteInfo.options();
         WriteBehavior writeBehavior = new WriteBehavior(
             //by default, the write-protocol is submitting literal sql statements
-            options.getOrDefault(FlightTable.WRITE_PROTOCOL, "sql").equalsIgnoreCase("arrow") ? WriteProtocol.ARROW : WriteProtocol.SQL,
+            options.getOrDefault(FlightTable.WRITE_PROTOCOL, "literal-sql").equalsIgnoreCase("prepared-sql") ? WriteProtocol.PREPARED_SQL : WriteProtocol.LITERAL_SQL,
             //by default, the batch-size is 10,240.
             Integer.parseInt(options.getOrDefault(FlightTable.BATCH_SIZE, "1024")),
             (String[])ArrayUtils.addAll(
@@ -141,7 +150,9 @@ public class FlightTable implements org.apache.spark.sql.connector.catalog.Table
                     .map(k -> options.getOrDefault(k, "")).filter(p -> !p.isEmpty()).toArray(String[]::new),
                 //combine with merge.ByColumns
                 options.containsKey(FlightTable.MERGE_BY_COLUMNS) ? options.get(FlightTable.MERGE_BY_COLUMNS).split("[;|,]") : new String[0]
-            )
+            ),
+            Arrays.stream(options.getOrDefault(FlightTable.WRITE_TYPE_MAPPING, FlightTable._TYPE_MAPPING_DEFAULT).split(";"))
+                .map(tm -> Arrays.stream(tm.split(":")).map(s -> s.trim().toLowerCase()).toArray(String[]::new)).collect(Collectors.toMap(s -> s[0], s -> s[1]))
         );
         return new FlightWriteBuilder(this._configuration, this._table, logicalWriteInfo.schema(), writeBehavior);
     }

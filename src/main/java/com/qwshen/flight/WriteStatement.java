@@ -16,6 +16,7 @@ import java.io.Serializable;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -46,6 +47,26 @@ public class WriteStatement implements Serializable {
     //the statement in the format of either merge into or insert into sql statement
     private String _stmt;
 
+    //the following is the mapping between arrow-types to data-types that the target flight end-point supports
+    private String _mapTinyInt = "int";
+    private String _mapSmallInt = "int";
+    private String _mapInt = "int";
+    private String _mapBigInt = "bigint";
+    private String _mapDate = "date";
+    private String _mapTime = "time";
+    private String _mapTimestamp = "timestamp";
+    private String _mapFloat4 = "float";
+    private String _mapFloat8 = "double";
+    private String _mapVarchar = "varchar";
+    private String _mapLargeVarchar = "varchar";
+    private String _mapDecimal = "decimal";
+    private String _mapDecimal256 = "decimal";
+    private String _mapUInt1 = "int";
+    private String _mapUInt2 = "int";
+    private String _mapUInt4 = "int";
+    private String _mapUInt8 = "int";
+    private String _mapBit = "boolean";
+
     /**
      * Construct a WriteStatement
      * @param tableName - the name of the table
@@ -53,8 +74,8 @@ public class WriteStatement implements Serializable {
      * @param arrowSchema - the arrow schema for the table
      * @param columnQuote - the character for quoting columns
      */
-    public WriteStatement(String tableName, StructType dataSchema, Schema arrowSchema, String columnQuote) {
-        this(dataSchema, arrowSchema);
+    public WriteStatement(String tableName, StructType dataSchema, Schema arrowSchema, String columnQuote, Map<String, String> typeMapping) {
+        this(dataSchema, arrowSchema, typeMapping);
         this._stmt = String.format("insert into %s(%s) %s", tableName, String.join(",", this._quote.apply(this._params, columnQuote)), WriteStatement._varValues);
     }
 
@@ -66,8 +87,8 @@ public class WriteStatement implements Serializable {
      * @param arrowSchema - the arrow schema for the table
      * @param columnQuote - the character for quoting columns
      */
-    public WriteStatement(String tableName, String[] mergeByColumns, StructType dataSchema, Schema arrowSchema, String columnQuote) {
-        this(dataSchema, arrowSchema);
+    public WriteStatement(String tableName, String[] mergeByColumns, StructType dataSchema, Schema arrowSchema, String columnQuote, Map<String, String> typeMapping) {
+        this(dataSchema, arrowSchema, typeMapping);
 
         java.util.Map<String, Integer> entries = new java.util.LinkedHashMap<>();
         for (String field: this._quote.apply(this._params, columnQuote)) {
@@ -84,11 +105,30 @@ public class WriteStatement implements Serializable {
     }
 
     //initialize properties
-    private WriteStatement(StructType dataSchema, Schema arrowSchema) {
+    private WriteStatement(StructType dataSchema, Schema arrowSchema, Map<String, String> typeMapping) {
         this._dataSchema = dataSchema;
         this._arrowSchema = arrowSchema.toJson();
         this._params = dataSchema.fieldNames();
         this._converters = new java.util.HashMap<>();
+
+        this._mapTinyInt = typeMapping.getOrDefault("tinyint", "int");
+        this._mapSmallInt = typeMapping.getOrDefault("smallint", "int");
+        this._mapInt = typeMapping.getOrDefault("int", "int");
+        this._mapBigInt = typeMapping.getOrDefault("bigint", "bigint");
+        this._mapDate = typeMapping.getOrDefault("date", "date");
+        this._mapTime = typeMapping.getOrDefault("time", "time");
+        this._mapTimestamp = typeMapping.getOrDefault("timestamp", "timestamp");
+        this._mapFloat4 = typeMapping.getOrDefault("float4", "float");
+        this._mapFloat8 = typeMapping.getOrDefault("float8", "double");
+        this._mapVarchar = typeMapping.getOrDefault("varchar", "varchar");
+        this._mapLargeVarchar = typeMapping.getOrDefault("largevarchar", "varchar");
+        this._mapDecimal = typeMapping.getOrDefault("decimal", "decimal");
+        this._mapDecimal256 = typeMapping.getOrDefault("decimal256", "decimal");
+        this._mapUInt1 = typeMapping.getOrDefault("uint1", "int");
+        this._mapUInt2 = typeMapping.getOrDefault("uint2", "int");
+        this._mapUInt4 = typeMapping.getOrDefault("uint4", "int");
+        this._mapUInt8 = typeMapping.getOrDefault("uint8", "int");
+        this._mapBit = typeMapping.getOrDefault("bit", "boolean");
     }
 
     /**
@@ -146,74 +186,100 @@ public class WriteStatement implements Serializable {
         return Arrays.stream(rows).map(row -> this._converters.get(key).apply(row.get(idxColumn, dataType), arrowField, dataType)).toArray(String[]::new);
     }
 
+    //conversion - Number to DECIMAL256
+    private final conversion<Object, Field, DataType, String> _number_2_decimal256 = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapDecimal256);
+    //conversion - Number to DECIMAL
+    private final conversion<Object, Field, DataType, String> _number_2_decimal = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapDecimal);
+    //conversion - Number to FLOAT8
+    private final conversion<Object, Field, DataType, String> _number_2_float8 = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapFloat8);
+    //conversion - Number to FLOAT4
+    private final conversion<Object, Field, DataType, String> _number_2_float4 = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapFloat4);
     //conversion - Number to BIGINT
-    private final conversion<Object, Field, DataType, String> _number_2_num = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as bigint)", (o == null) ? "null" : o.toString());
+    private final conversion<Object, Field, DataType, String> _number_2_bigint = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapBigInt);
+    //conversion - Number to UINT8
+    private final conversion<Object, Field, DataType, String> _number_2_uint8 = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapUInt8);
+    //conversion - Number to UINT4
+    private final conversion<Object, Field, DataType, String> _number_2_uint4 = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapUInt4);
+    //conversion - Number to INT
+    private final conversion<Object, Field, DataType, String> _number_2_int = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapInt);
+    //conversion - Number to UINT2
+    private final conversion<Object, Field, DataType, String> _number_2_uint2 = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapUInt2);
+    //conversion - Number to UINT1
+    private final conversion<Object, Field, DataType, String> _number_2_uint1 = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapUInt1);
+    //conversion - Number to SMALLINT
+    private final conversion<Object, Field, DataType, String> _number_2_smallint = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapSmallInt);
+    //conversion - Number to TINYINT
+    private final conversion<Object, Field, DataType, String> _number_2_tinyint = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapTinyInt);
     //conversion - Primitive to VARCHAR
-    private final conversion<Object, Field, DataType, String> _primitive_2_varchar = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> (o == null) ? "cast(null as varchar)" : String.format("'%s'", o.toString().replace("'", "''"));
+    private final conversion<Object, Field, DataType, String> _primitive_2_varchar = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> (o == null) ? String.format("cast(null as %s)", this._mapVarchar) : String.format("'%s'", o.toString().replace("'", "''"));
+    //conversion - Primitive to LARGEVARCHAR
+    private final conversion<Object, Field, DataType, String> _primitive_2_largevarchar = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> (o == null) ? String.format("cast(null as %s)", this._mapLargeVarchar) : String.format("'%s'", o.toString().replace("'", "''"));
     //conversion - Complex to VARCHAR
-    private final conversion<Object, Field, DataType, String> _complex_2_varchar = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> (o == null) ? "cast(null as varchar)" : String.format("'%s'", this._to_json.apply(o, dt).replace("'", "''"));
+    private final conversion<Object, Field, DataType, String> _complex_2_varchar = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> (o == null) ? String.format("cast(null as %s)", this._mapVarchar) : String.format("'%s'", this._to_json.apply(o, dt).replace("'", "''"));
+    //conversion - Complex to LARGEVARCHAR
+    private final conversion<Object, Field, DataType, String> _complex_2_largevarchar = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> (o == null) ? String.format("cast(null as %s)", this._mapLargeVarchar) : String.format("'%s'", this._to_json.apply(o, dt).replace("'", "''"));
     //conversion - String to TIMESEC
-    private final conversion<Object, Field, DataType, String> _string_2_timeSec = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as time)", (o == null) ? "null" : LocalTime.parse((o instanceof String) ? (String)o : o.toString()).format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+    private final conversion<Object, Field, DataType, String> _string_2_timeSec = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : LocalTime.parse((o instanceof String) ? (String)o : o.toString()).format(DateTimeFormatter.ofPattern("HH:mm:ss")), this._mapTime);
     //conversion - Timestamp to TIMESEC
-    private final conversion<Object, Field, DataType, String> _timestamp_2_timeSec = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as time)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_timeSec = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("HH:mm:ss")), this._mapTime);
     //conversion - String to TIMENANO
-    private final conversion<Object, Field, DataType, String> _string_2_timeNano = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as time)", (o == null) ? "null" : LocalTime.parse((o instanceof String) ? (String)o : o.toString()).format(DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSSSSS")));
+    private final conversion<Object, Field, DataType, String> _string_2_timeNano = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : LocalTime.parse((o instanceof String) ? (String)o : o.toString()).format(DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSSSSS")), this._mapTime);
     //conversion - Timestamp to TIMENANO
-    private final conversion<Object, Field, DataType, String> _timestamp_2_timeNano = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as time)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSSSSS")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_timeNano = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSSSSS")), this._mapTime);
     //conversion - String to TIMEMICRO
-    private final conversion<Object, Field, DataType, String> _string_2_timeMicro = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as time)", (o == null) ? "null" : LocalTime.parse((o instanceof String) ? (String)o : o.toString()).format(DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS")));
+    private final conversion<Object, Field, DataType, String> _string_2_timeMicro = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : LocalTime.parse((o instanceof String) ? (String)o : o.toString()).format(DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS")), this._mapTime);
     //conversion - Timestamp to TIMEMICRO
-    private final conversion<Object, Field, DataType, String> _timestamp_2_timeMicro = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as time)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_timeMicro = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS")), this._mapTime);
     //conversion - String to TIMEMILLI
-    private final conversion<Object, Field, DataType, String> _string_2_timeMilli = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as time)", (o == null) ? "null" : LocalTime.parse((o instanceof String) ? (String)o : o.toString()).format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")));
+    private final conversion<Object, Field, DataType, String> _string_2_timeMilli = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : LocalTime.parse((o instanceof String) ? (String)o : o.toString()).format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")), this._mapTime);
     //conversion - Timestamp to TIMEMILLI
-    private final conversion<Object, Field, DataType, String> _timestamp_2_timeMilli = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as time)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_timeMilli = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")), this._mapTime);
     //conversion - Date to DATEMILLI
-    private final conversion<Object, Field, DataType, String> _date_2_dateMilli = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as date)", (o == null) ? "null" : DateTimeUtils.daysToLocalDate((o instanceof Number) ? (int)o : Integer.parseInt(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+    private final conversion<Object, Field, DataType, String> _date_2_dateMilli = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.daysToLocalDate((o instanceof Number) ? (int)o : Integer.parseInt(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")), this._mapDate);
     //conversion - Timestamp to DATEMILLI
-    private final conversion<Object, Field, DataType, String> _timestamp_2_dateMilli = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as date)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(DateTimeUtils.daysToMicros((o instanceof Number) ? (int)o : Integer.parseInt(o.toString()), ZoneId.systemDefault())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_dateMilli = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(DateTimeUtils.daysToMicros((o instanceof Number) ? (int)o : Integer.parseInt(o.toString()), ZoneId.systemDefault())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")), this._mapDate);
     //conversion - Timestamp to DateDay
-    private final conversion<Object, Field, DataType, String> _timestamp_2_dateDay = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as date)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_dateDay = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")), this._mapDate);
     //conversion - Date to DateDay
-    private final conversion<Object, Field, DataType, String> _date_2_dateDay = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as date)", (o == null) ? "null" : DateTimeUtils.daysToLocalDate((o instanceof Number) ? (int)o : Integer.parseInt(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+    private final conversion<Object, Field, DataType, String> _date_2_dateDay = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.daysToLocalDate((o instanceof Number) ? (int)o : Integer.parseInt(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")), this._mapDate);
     //conversion - Boolean to BIT
-    private final conversion<Object, Field, DataType, String> _boolean_2_bit = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as boolean)", (o == null) ? "null" : o.toString());
+    private final conversion<Object, Field, DataType, String> _boolean_2_bit = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString(), this._mapBit);
     //conversion - Number to BIT
-    private final conversion<Object, Field, DataType, String> _number_2_bit = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as boolean)", (o == null) ? "null" : (((int)o) != 0) ? "true" : "false");
+    private final conversion<Object, Field, DataType, String> _number_2_bit = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : (((int)o) != 0) ? "true" : "false", this._mapBit);
     //conversion - String to BIT
-    private final conversion<Object, Field, DataType, String> _string_2_bit = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as boolean)", (o == null) ? "null" : o.toString().equalsIgnoreCase("true") ? "true" : "false");
+    private final conversion<Object, Field, DataType, String> _string_2_bit = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast(%s as %s)", (o == null) ? "null" : o.toString().equalsIgnoreCase("true") ? "true" : "false", this._mapBit);
     //conversion - Timestamp to TIMESTAMPMILLI
-    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampMilli = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampMilli = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")), this._mapTimestamp);
     //conversion - Date to TIMESTAMPMILLI
-    private final conversion<Object, Field, DataType, String> _date_2_timestampMilli = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.daysToLocalDate((o instanceof Number) ? (int)o : Integer.parseInt(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")));
+    private final conversion<Object, Field, DataType, String> _date_2_timestampMilli = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.daysToLocalDate((o instanceof Number) ? (int)o : Integer.parseInt(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")), this._mapTimestamp);
     //conversion - Timestamp to TIMESTAMPSEC
-    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampSec = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampSec = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), this._mapTimestamp);
     //conversion - Date to TIMESTAMPSEC
-    private final conversion<Object, Field, DataType, String> _date_2_timestampSec = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.daysToLocalDate((o instanceof Number) ? (int)o : Integer.parseInt(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+    private final conversion<Object, Field, DataType, String> _date_2_timestampSec = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.daysToLocalDate((o instanceof Number) ? (int)o : Integer.parseInt(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), this._mapTimestamp);
     //conversion - Timestamp to TIMESTAMPNANO
-    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampNano = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampNano = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS")), this._mapTimestamp);
     //conversion - Date to TIMESTAMPNANO
-    private final conversion<Object, Field, DataType, String> _date_2_timestampNano = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.daysToLocalDate((o instanceof Number) ? (int)o : Integer.parseInt(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS")));
+    private final conversion<Object, Field, DataType, String> _date_2_timestampNano = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.daysToLocalDate((o instanceof Number) ? (int)o : Integer.parseInt(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS")), this._mapTimestamp);
     //conversion - Timestamp to TIMESTAMPMICRO
-    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampMicro = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampMicro = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime((o instanceof Number) ? (long)o : Long.parseLong(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")), this._mapTimestamp);
     //conversion - Date to TIMESTAMPMICRO
-    private final conversion<Object, Field, DataType, String> _date_2_timestampMicro = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.daysToLocalDate((o instanceof Number) ? (int)o : Integer.parseInt(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")));
+    private final conversion<Object, Field, DataType, String> _date_2_timestampMicro = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.daysToLocalDate((o instanceof Number) ? (int)o : Integer.parseInt(o.toString())).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")), this._mapTimestamp);
     //conversion - Timestamp to TIMESTAMPMILLITZ
-    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampMilliTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._micros_2_microsTZ.apply((o instanceof Number) ? (long)o : Long.parseLong(o.toString()), f, LongType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampMilliTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._micros_2_microsTZ.apply((o instanceof Number) ? (long)o : Long.parseLong(o.toString()), f, LongType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")), this._mapTimestamp);
     //conversion - Date to TIMESTAMPMILLITZ
-    private final conversion<Object, Field, DataType, String> _date_2_timestampMilliTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._days_2_microsTZ.apply((o instanceof Number) ? (int)o : Integer.parseInt(o.toString()), f, IntegerType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")));
+    private final conversion<Object, Field, DataType, String> _date_2_timestampMilliTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._days_2_microsTZ.apply((o instanceof Number) ? (int)o : Integer.parseInt(o.toString()), f, IntegerType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")), this._mapTimestamp);
     //conversion - Timestamp to TIMESTAMPSEC
-    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampSecTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._micros_2_microsTZ.apply((o instanceof Number) ? (long)o : Long.parseLong(o.toString()), f, LongType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampSecTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._micros_2_microsTZ.apply((o instanceof Number) ? (long)o : Long.parseLong(o.toString()), f, LongType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), this._mapTimestamp);
     //conversion - Date to TIMESTAMPSEC
-    private final conversion<Object, Field, DataType, String> _date_2_timestampSecTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._days_2_microsTZ.apply((o instanceof Number) ? (int)o : Integer.parseInt(o.toString()), f, IntegerType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+    private final conversion<Object, Field, DataType, String> _date_2_timestampSecTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._days_2_microsTZ.apply((o instanceof Number) ? (int)o : Integer.parseInt(o.toString()), f, IntegerType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), this._mapTimestamp);
     //conversion - Timestamp to TIMESTAMPNANO
-    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampNanoTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._micros_2_microsTZ.apply((o instanceof Number) ? (long)o : Long.parseLong(o.toString()), f, LongType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampNanoTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._micros_2_microsTZ.apply((o instanceof Number) ? (long)o : Long.parseLong(o.toString()), f, LongType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS")), this._mapTimestamp);
     //conversion - Date to TIMESTAMPNANO
-    private final conversion<Object, Field, DataType, String> _date_2_timestampNanoTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._days_2_microsTZ.apply((o instanceof Number) ? (int)o : Integer.parseInt(o.toString()), f, IntegerType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS")));
+    private final conversion<Object, Field, DataType, String> _date_2_timestampNanoTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._days_2_microsTZ.apply((o instanceof Number) ? (int)o : Integer.parseInt(o.toString()), f, IntegerType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS")), this._mapTimestamp);
     //conversion - Timestamp to TIMESTAMPMICRO
-    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampMicroTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._micros_2_microsTZ.apply((o instanceof Number) ? (long)o : Long.parseLong(o.toString()), f, LongType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")));
+    private final conversion<Object, Field, DataType, String> _timestamp_2_timestampMicroTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._micros_2_microsTZ.apply((o instanceof Number) ? (long)o : Long.parseLong(o.toString()), f, LongType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")), this._mapTimestamp);
     //conversion - Date to TIMESTAMPMICRO
-    private final conversion<Object, Field, DataType, String> _date_2_timestampMicroTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as timestamp)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._days_2_microsTZ.apply((o instanceof Number) ? (int)o : Integer.parseInt(o.toString()), f, IntegerType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")));
+    private final conversion<Object, Field, DataType, String> _date_2_timestampMicroTZ = (conversion<Object, Field, DataType, String> & Serializable)(o, f, dt) -> String.format("cast('%s' as %s)", (o == null) ? "null" : DateTimeUtils.microsToLocalDateTime(this._days_2_microsTZ.apply((o instanceof Number) ? (int)o : Integer.parseInt(o.toString()), f, IntegerType$.MODULE$)).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")), this._mapTimestamp);
 
     //initialize all converters
     private void initialize() {
@@ -245,32 +311,32 @@ public class WriteStatement implements Serializable {
         this._converters.put(String.format("%s-%s", TimestampType.class.getTypeName(), Types.MinorType.TIMEMILLI.getClass().getTypeName()), this._timestamp_2_timeMilli);
         this._converters.put(String.format("%s-%s", DateType.class.getTypeName(), Types.MinorType.DATEMILLI.getClass().getTypeName()), this._date_2_dateMilli);
         this._converters.put(String.format("%s-%s", TimestampType.class.getTypeName(), Types.MinorType.DATEMILLI.getClass().getTypeName()), this._timestamp_2_dateMilli);
-        this._converters.put(String.format("%s-%s", DecimalType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", DoubleType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", FloatType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", LongType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", DecimalType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", DoubleType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", FloatType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", LongType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", DoubleType.class.getTypeName(), Types.MinorType.FLOAT8.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", FloatType.class.getTypeName(), Types.MinorType.FLOAT8.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.FLOAT8.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.FLOAT8.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.FLOAT8.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", LongType.class.getTypeName() , Types.MinorType.FLOAT8.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", DoubleType.class.getTypeName(), Types.MinorType.FLOAT4.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", FloatType.class.getTypeName(), Types.MinorType.FLOAT4.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.FLOAT4.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.FLOAT4.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.FLOAT4.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", LongType.class.getTypeName(), Types.MinorType.FLOAT4.getClass().getTypeName()), this._number_2_num);
+        this._converters.put(String.format("%s-%s", DecimalType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_decimal256);
+        this._converters.put(String.format("%s-%s", DoubleType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_decimal256);
+        this._converters.put(String.format("%s-%s", FloatType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_decimal256);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_decimal256);
+        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_decimal256);
+        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_decimal256);
+        this._converters.put(String.format("%s-%s", LongType.class.getTypeName(), Types.MinorType.DECIMAL256.getClass().getTypeName()), this._number_2_decimal256);
+        this._converters.put(String.format("%s-%s", DecimalType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_decimal);
+        this._converters.put(String.format("%s-%s", DoubleType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_decimal);
+        this._converters.put(String.format("%s-%s", FloatType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_decimal);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_decimal);
+        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_decimal);
+        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_decimal);
+        this._converters.put(String.format("%s-%s", LongType.class.getTypeName(), Types.MinorType.DECIMAL.getClass().getTypeName()), this._number_2_decimal);
+        this._converters.put(String.format("%s-%s", DoubleType.class.getTypeName(), Types.MinorType.FLOAT8.getClass().getTypeName()), this._number_2_float8);
+        this._converters.put(String.format("%s-%s", FloatType.class.getTypeName(), Types.MinorType.FLOAT8.getClass().getTypeName()), this._number_2_float8);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.FLOAT8.getClass().getTypeName()), this._number_2_float8);
+        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.FLOAT8.getClass().getTypeName()), this._number_2_float8);
+        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.FLOAT8.getClass().getTypeName()), this._number_2_float8);
+        this._converters.put(String.format("%s-%s", LongType.class.getTypeName() , Types.MinorType.FLOAT8.getClass().getTypeName()), this._number_2_float8);
+        this._converters.put(String.format("%s-%s", DoubleType.class.getTypeName(), Types.MinorType.FLOAT4.getClass().getTypeName()), this._number_2_float4);
+        this._converters.put(String.format("%s-%s", FloatType.class.getTypeName(), Types.MinorType.FLOAT4.getClass().getTypeName()), this._number_2_float4);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.FLOAT4.getClass().getTypeName()), this._number_2_float4);
+        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.FLOAT4.getClass().getTypeName()), this._number_2_float4);
+        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.FLOAT4.getClass().getTypeName()), this._number_2_float4);
+        this._converters.put(String.format("%s-%s", LongType.class.getTypeName(), Types.MinorType.FLOAT4.getClass().getTypeName()), this._number_2_float4);
         this._converters.put(String.format("%s-%s", BooleanType.class.getTypeName(), Types.MinorType.BIT.getClass().getTypeName()), this._boolean_2_bit);
         this._converters.put(String.format("%s-%s", StringType.class.getTypeName(), Types.MinorType.BIT.getClass().getTypeName()), this._string_2_bit);
         this._converters.put(String.format("%s-%s", DecimalType.class.getTypeName(), Types.MinorType.BIT.getClass().getTypeName()), this._number_2_bit);
@@ -280,26 +346,26 @@ public class WriteStatement implements Serializable {
         this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.BIT.getClass().getTypeName()), this._number_2_bit);
         this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.BIT.getClass().getTypeName()), this._number_2_bit);
         this._converters.put(String.format("%s-%s", LongType.class.getTypeName(), Types.MinorType.BIT.getClass().getTypeName()), this._number_2_bit);
-        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.BIGINT.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.BIGINT.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.BIGINT.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", LongType.class.getTypeName() , Types.MinorType.BIGINT.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName() , Types.MinorType.UINT8.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.UINT8.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.UINT8.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", LongType.class.getTypeName(), Types.MinorType.UINT8.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.UINT4.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.UINT4.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.UINT4.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.INT.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.INT.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.INT.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.UINT2.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.UINT2.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.UINT1.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.SMALLINT.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.SMALLINT.getClass().getTypeName()), this._number_2_num);
-        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.TINYINT.getClass().getTypeName()), this._number_2_num);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.BIGINT.getClass().getTypeName()), this._number_2_bigint);
+        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.BIGINT.getClass().getTypeName()), this._number_2_bigint);
+        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.BIGINT.getClass().getTypeName()), this._number_2_bigint);
+        this._converters.put(String.format("%s-%s", LongType.class.getTypeName() , Types.MinorType.BIGINT.getClass().getTypeName()), this._number_2_bigint);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName() , Types.MinorType.UINT8.getClass().getTypeName()), this._number_2_uint8);
+        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.UINT8.getClass().getTypeName()), this._number_2_uint8);
+        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.UINT8.getClass().getTypeName()), this._number_2_uint8);
+        this._converters.put(String.format("%s-%s", LongType.class.getTypeName(), Types.MinorType.UINT8.getClass().getTypeName()), this._number_2_uint8);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.UINT4.getClass().getTypeName()), this._number_2_uint4);
+        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.UINT4.getClass().getTypeName()), this._number_2_uint4);
+        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.UINT4.getClass().getTypeName()), this._number_2_uint4);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.INT.getClass().getTypeName()), this._number_2_int);
+        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.INT.getClass().getTypeName()), this._number_2_int);
+        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.INT.getClass().getTypeName()), this._number_2_int);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.UINT2.getClass().getTypeName()), this._number_2_uint2);
+        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.UINT2.getClass().getTypeName()), this._number_2_uint2);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.UINT1.getClass().getTypeName()), this._number_2_uint1);
+        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.SMALLINT.getClass().getTypeName()), this._number_2_smallint);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.SMALLINT.getClass().getTypeName()), this._number_2_smallint);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.TINYINT.getClass().getTypeName()), this._number_2_tinyint);
         this._converters.put(String.format("%s-%s", StringType.class.getTypeName(), Types.MinorType.VARCHAR.getClass().getTypeName()), this._primitive_2_varchar);
         this._converters.put(String.format("%s-%s", BooleanType.class.getTypeName(), Types.MinorType.VARCHAR.getClass().getTypeName()), this._primitive_2_varchar);
         this._converters.put(String.format("%s-%s", DoubleType.class.getTypeName(), Types.MinorType.VARCHAR.getClass().getTypeName()), this._primitive_2_varchar);
@@ -314,6 +380,20 @@ public class WriteStatement implements Serializable {
         this._converters.put(String.format("%s-%s", MapType.class.getTypeName(), Types.MinorType.VARCHAR.getClass().getTypeName()), this._complex_2_varchar);
         this._converters.put(String.format("%s-%s", ArrayType.class.getTypeName(), Types.MinorType.VARCHAR.getClass().getTypeName()), this._complex_2_varchar);
         this._converters.put(String.format("%s-%s", StructType.class.getTypeName(), Types.MinorType.VARCHAR.getClass().getTypeName()), this._complex_2_varchar);
+        this._converters.put(String.format("%s-%s", StringType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._primitive_2_largevarchar);
+        this._converters.put(String.format("%s-%s", BooleanType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._primitive_2_largevarchar);
+        this._converters.put(String.format("%s-%s", DoubleType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._primitive_2_largevarchar);
+        this._converters.put(String.format("%s-%s", FloatType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._primitive_2_largevarchar);
+        this._converters.put(String.format("%s-%s", ByteType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._primitive_2_largevarchar);
+        this._converters.put(String.format("%s-%s", IntegerType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._primitive_2_largevarchar);
+        this._converters.put(String.format("%s-%s", LongType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._primitive_2_largevarchar);
+        this._converters.put(String.format("%s-%s", ShortType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._primitive_2_largevarchar);
+        this._converters.put(String.format("%s-%s", DateType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._primitive_2_largevarchar);
+        this._converters.put(String.format("%s-%s", TimestampType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._primitive_2_largevarchar);
+        this._converters.put(String.format("%s-%s", DecimalType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._primitive_2_largevarchar);
+        this._converters.put(String.format("%s-%s", MapType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._complex_2_largevarchar);
+        this._converters.put(String.format("%s-%s", ArrayType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._complex_2_largevarchar);
+        this._converters.put(String.format("%s-%s", StructType.class.getTypeName(), Types.MinorType.LARGEVARCHAR.getClass().getTypeName()), this._complex_2_largevarchar);
     }
 
     //micros to micros-TZ

@@ -27,8 +27,9 @@ public class FlightDataWriterFactory implements DataWriterFactory {
      */
     public FlightDataWriterFactory(Configuration configuration, Table table, StructType dataSchema, WriteBehavior writeBehavior) {
         this._configuration = configuration;
-        this._stmt = (writeBehavior.getMergeByColumns() == null || writeBehavior.getMergeByColumns().length == 0) ? new WriteStatement(table.getName(), dataSchema, table.getSchema(), table.getColumnQuote())
-            : new WriteStatement(table.getName(), writeBehavior.getMergeByColumns(), dataSchema, table.getSchema(), table.getColumnQuote());
+        this._stmt = (writeBehavior.getMergeByColumns() == null || writeBehavior.getMergeByColumns().length == 0)
+            ? new WriteStatement(table.getName(), dataSchema, table.getSchema(), table.getColumnQuote(), writeBehavior.getTypeMapping())
+            : new WriteStatement(table.getName(), writeBehavior.getMergeByColumns(), dataSchema, table.getSchema(), table.getColumnQuote(), writeBehavior.getTypeMapping());
         this._protocol = writeBehavior.getProtocol();
         this._batchSize = writeBehavior.getBatchSize();
 

@@ -154,8 +154,8 @@ df.write
 ```
 The following options are supported for writing:
 - write.protocol: the protocol of how to submit DML requests to flight end-points
-  - arrow: the connector uses Flight-SQL to conduct all DML operations.
-  - sql: the connector uses literal sql-statements for all DML operations. This is the default protocol.
+  - prepared-sql: the connector uses PreparedStatement of Flight-SQL to conduct all DML operations.
+  - literal-sql: the connector uses literal sql-statements for all DML operations. Type mapping between arrow and target flight end-point may be required, please check the Type-Mapping section below. This is the default protocol.
 - batch.size: the number of rows in each batch for writing. The default value is 1024. Note: depending on the size of each record, StackOverflowError might be thrown if the batch size is too big. In such case, adjust it to a smaller value. 
 - merge.byColumn: the name of a column used for merging the data into the target table. This only applies when the save-mode is in append;
 - merge.ByColumns: the name of multiple columns used for merging the data into the target table. This only applies when the save-mode is in append.
@@ -172,9 +172,9 @@ df.write
 ```
 
 ### 3. Data-type Mapping
-#### - Arrow-Flight >> Spark
+#### - Arrow >> Spark
 
- Arrow-Flight | Spark
+ Arrow | Spark
  --- | --- 
 bit | boolean
 signed int8 | byte
@@ -204,12 +204,46 @@ map | map
 
 Note: for Dremio Flight (up to v22.0.0), the Map type is converted to Struct. The connector detects the pattern and converts back to Map when reading data, and adapts to Struct when writing data.
 
-#### - Spark >> Arrow-Flight
+#### - Spark >> Arrow
 
-When the connector is writing data, the schema of the target table is retrieved first, then the connector tries to adapt the source field to the type of the target, so the types of source and target must be compatible. Otherwise runtime exception will be thrown. Such as
-- Spark Int adapts to Arrow-Flight Decimal;
-- Spark Timestamp adapts to Arrow-Flight Time;
-- In sql mode (write.protocol = sql), all complex types (struct, map & list) are converted to json string.
+When the connector is writing data, the schema of the target table is retrieved first, then the connector tries to adapt the source field to the type of the target, so the types of source and target must be compatible. Otherwise, runtime exception will be thrown. Such as
+- Spark Int adapts to Arrow Decimal;
+- Spark Timestamp adapts to Arrow Time;
+- When using literal sql-statements (write.protocol = literal-sql), all complex types (struct, map & list) are converted to json string.
 - etc.
 
-Note: for Dremio Flight (up to v22.0.0), iceberg tables don't support writing complex types yet, and only accepts literal sql-statements for DML operations which require write.protocol = sql.
+Note: for Dremio Flight (up to v22.0.0), it doesn't support writing complex types with DML statements yet, neither batch-writing with prepared-statements against iceberg tables. In such case, the connector could use literal sql-statements for DML operations.
+
+#### - Arrow >> Flight End-Point (For "write.protocol = literal-sql" only)
+When the connector uses literal sql-statements for DML operations, it needs to know the type system of the target flight end-point which may not support all types defined in Apache Arrow.
+
+The following is the type-mapping between Apache Arrow and Dremio end-point:
+```scala worksheet
+  BIT --> BOOLEAN
+  LARGEVARCHAR --> VARCHAR
+  VARCHAR --> VARCHAR
+  TINYINT --> INT
+  SMALLINT --> INT
+  UINT1 --> INT
+  UINT2 --> INT
+  UINT4 --> INT
+  UINT8 --> INT
+  INT  -> INT
+  BIGINT  -> BIGINT
+  FLOAT4 --> FLOAT
+  FLOAT8 --> DOUBLE
+  DECIMAL --> DECIMAL
+  DECIMAL256 --> DECIMAL
+  DATE --> DATE
+  TIME --> TIME
+  TIMESTAMP --> TIMESTAMP
+```
+This is also the default type-mapping used by the connector. To override it, please use the following option:
+```scala worksheet
+  df.write.format("flight")
+      .option( ... )    
+      .option("write.protocol", "literal-sql")
+      .option("write.typeMapping", "LARGEVARCHAR:VARCHAR;VARCHAR:VARCHAR;TINYINT:INT;SMALLINT:INT;UINT1:INT;UINT2:INT;UINT4:INT;UINT8:INT;INT:INT;BIGINT:BIGINT;FLOAT4:FLOAT;FLOAT8:DOUBLE;DECIMAL:DECIMAL;DECIMAL256:DECIMAL;DATE:DATE;TIME:TIME;TIMESTAMP:TIMESTAMP")
+    .mode("overwrite").save
+```
+Currently, the binary, interval, complex types are not supported when using literal sql-statement for DML operations.

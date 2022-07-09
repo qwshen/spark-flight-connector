@@ -5,7 +5,7 @@ import org.apache.spark.sql.functions.{col, lit, struct, when, map, array}
 import org.scalatest.{BeforeAndAfterEach, FunSuite}
 
 class DremioTest extends FunSuite with BeforeAndAfterEach {
-  private val dremioHost = "192.168.0.11"
+  private val dremioHost = "192.168.0.19"
   private val dremioPort = "32010"
   private val dremioTlsEnabled = false;
   private val user = "test"
@@ -246,7 +246,7 @@ class DremioTest extends FunSuite with BeforeAndAfterEach {
     val appendMap: SparkSession => Unit = this.append(Map("table" -> dstTable, "merge.byColumns_1" -> "event_id", "merge.byColumns_2" -> "user_id"), dfMap)
     this.execute(appendMap)
 
-//    //append for array
+    //append for array
     val dfArray = df.filter(col("user_id") === lit("1733137333"))
       .withColumn("event_id", col("event_id") + 1000000000L)
       .withColumn("remark", array(col("city"), col("state"), col("country")))

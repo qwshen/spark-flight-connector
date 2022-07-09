@@ -5,7 +5,7 @@ package com.qwshen.flight;
  */
 public enum WriteProtocol {
     //literal sql statements are submitted
-    SQL,
+    LITERAL_SQL,
     //prepared sql statements are submitted
-    ARROW
+    PREPARED_SQL
 }
