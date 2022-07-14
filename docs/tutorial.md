@@ -102,7 +102,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
   df.show(false)   //to show the records from the table
 ```
 
-18. Truncate the table then insert
+18. Overwrite the table
 ```scala
   val df = spark.read.format("flight")
         .option("host", "127.0.0.1").option("port", "32010").option("user", "test").option("password", "Password@12345")
@@ -119,7 +119,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
 ```
 Then go to Dremio web-ui to check if new data has been inserted with the new customer ids.
 
-19. Merge by
+19. Merge into the table
 ```scala
   val df = spark.read.format("flight")
         .option("host", "127.0.0.1").option("port", "32010").option("user", "test").option("password", "Password@12345")
