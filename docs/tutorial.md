@@ -1,4 +1,4 @@
-This tutorial uses Dremio Community Edition v21.2.0 or above as the back-end Arrow-Flight server. Please follow the following steps:
+This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arrow-Flight server. Please follow the following steps:
 
 1. Set up a linux environment, such as Ubuntu 14.04+ with Java SE 8 (JDK 1.8) or Java SE 11 (JDK 1.11);
 
