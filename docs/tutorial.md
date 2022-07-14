@@ -127,7 +127,7 @@ Then go to Dremio web-ui to check if new data has been inserted with the new cus
      .load
   df.show(false)   //to show the records from the table
 
-  //overwrite
+  //merge into
   df.withColumn("customer_id", when(col("customer_id") % 3 === lit(0), col("customer_id") + 90000).otherwise(col("customer_id")))
     .withColumn("created_date", current_date())
     .withColumn("company", when(col("company") === lit("ABC Manufacturing"), lit("Central Bank")).otherwise(col("company")))
