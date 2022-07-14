@@ -21,7 +21,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
   dremio start
 ```
 
-8. In a browser, browse to http://127.0.0.1:9047 to open the Dremio Web Console. It is required to create an admin user the first time:
+8. In the address bar of a browser, type http://127.0.0.1:9047 to open the Dremio Web Console. It is required to create an admin user the first time:
    - User-Name: test
    - Password: Password@123
 
