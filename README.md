@@ -14,8 +14,7 @@ In order to connect to an arrow-flight end-point, the following properties are m
 - port: the port number;
 - user: the user account for connecting to and reading/writing data from/to the arrow-flight end-point; 
 - password: the password of the user account;
-- table: the name of the table from/to which the connector reads/writes data. The table can be a physical data table, or any view. It can also be a select sql-statement or 
-tables-joining statement. For example:
+- table: the name of a table from/to which the connector reads/writes data. The table can be a physical data table, or any view. It can also be a select sql-statement or tables-joining statement. For example:
   - select-statement
     ```roomsql
      select id, name, address from customers where city = 'TORONTO'
