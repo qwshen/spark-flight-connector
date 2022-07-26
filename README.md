@@ -69,10 +69,10 @@ df.show
 
 By default, the connector respects the partitioning from the source arrow-flight end-points, data from each end-point is put to one partition. However, the partitioning behavior can be customized with the following properties:
 - partition.size: the number of partitions in the final dataframe. The default is 6.
-- partition.byColumn: the name of one column used to partitioning. Only one column for partitioning is supported. This is mandatory.
+- partition.byColumn: the name of a column used for partitioning. Only one column is supported. This is mandatory.
 - partition.lowerBound: the lower-bound of the by-column. This only applies when the data-type of the by-column is numeric or date-time.
 - partition.upperBound: the upper-bound of the by-column. This only applies when the data-type of the by-column is numeric or date-time.
-- partition.hashFunc: the name of the hash function supported in the arrow-flight end-points. This is required when the data-type of the by-column is not numeric or date-time, and the lower-bound, upper-bound are not provided. The default name is hash.
+- partition.hashFunc: the name of the hash function supported in the arrow-flight end-points. This is required when the data-type of the by-column is not numeric or date-time, and the lower-bound, upper-bound are not provided. The default name is hash as defined in Dremio.
 - partition.predicate: each individual partitioning predicate is prefixed with this key.
 - partition.predicates: all partitioning predicates are concatenated by semi-colon (;) or comma (,).
 
