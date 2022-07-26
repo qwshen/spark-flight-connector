@@ -29,7 +29,7 @@ The following properties are optional:
 - tls.verifyServer - whether to verify the certificate from the arrow-flight end-point; Default: true if tls.enabled = true.
 - tls.truststore.jksFile: the trust-store file in jks format;
 - tls.truststore.pass: the pass code of the trust-store file;
-- column.quote: the character to quote the name of fields that any illegal character is used, such as the following sql statement:
+- column.quote: the character to quote the name of fields if any special character is used, such as the following sql statement:
 ```roomsql
   select id, "departure-time", "arrival-time" from flights where "flight-no" = 'ABC-21';
 ```
