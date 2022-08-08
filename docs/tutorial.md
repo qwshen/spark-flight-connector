@@ -115,7 +115,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
     .write.format("flight")
       .option("host", "127.0.0.1").option("port", "32010").option("user", "test").option("password", "Password@12345")
       .option("table", """test."iceberg_db"."iceberg_customers"""")
-    .move("overwrite").save()
+    .mode("overwrite").save()
 ```
 Then go to Dremio web-ui to check if new data has been inserted with the new customer ids.
 
@@ -135,7 +135,7 @@ Then go to Dremio web-ui to check if new data has been inserted with the new cus
       .option("host", "127.0.0.1").option("port", "32010").option("user", "test").option("password", "Password@12345")
       .option("table", """test."iceberg_db"."iceberg_customers"""")
       .option("merge.byColumn", "customer_id")
-    .move("append").save()
+    .mode("append").save()
 ```
 Then go to Dremio web-ui to check data changes.
 
