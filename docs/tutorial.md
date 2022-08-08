@@ -137,5 +137,5 @@ Then go to Dremio web-ui to check if new data has been inserted with the new cus
       .option("merge.byColumn", "customer_id")
     .mode("append").save()
 ```
-Then go to Dremio web-ui to check data changes.
+Then go to Dremio web-ui to check the data changes.
 
