@@ -25,7 +25,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
    - User-Name: test
    - Password: Password@123
 
-9. On the Dremio Web UI, open the SQL Runner, and execute the following command to enable iceberg:
+9. On the Dremio Web UI, open the SQL Runner, and execute the following commands to enable iceberg:
 ```roomsql
   alter system set dremio.iceberg.enabled = true;
   alter system set dremio.iceberg.dml.enabled = true;
