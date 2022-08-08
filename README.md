@@ -25,6 +25,7 @@ In order to connect to an arrow-flight end-point, the following properties are m
     ```
 
 The following properties are optional:
+
 - tls.enabled: whether the arrow-flight end-point is tls-enabled for secure communication;
 - tls.verifyServer - whether to verify the certificate from the arrow-flight end-point; Default: true if tls.enabled = true.
 - tls.truststore.jksFile: the trust-store file in jks format;
@@ -33,6 +34,8 @@ The following properties are optional:
 ```roomsql
   select id, "departure-time", "arrival-time" from flights where "flight-no" = 'ABC-21';
 ```
+
+The connector supports optimized-read with filter, required-columns and count pushing-down, and parallel read when partitioning is enalbed.
 
 ### 1. Load data
 ```scala
