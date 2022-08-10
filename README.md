@@ -159,8 +159,8 @@ The following options are supported for writing:
   - prepared-sql: the connector uses PreparedStatement of Flight-SQL to conduct all DML operations.
   - literal-sql: the connector uses literal sql-statements for all DML operations. Type mapping between arrow and target flight end-point may be required, please check the Type-Mapping section below. This is the default protocol.
 - batch.size: the number of rows in each batch for writing. The default value is 1024. Note: depending on the size of each record, StackOverflowError might be thrown if the batch size is too big. In such case, adjust it to a smaller value. 
-- merge.byColumn: the name of a column used for merging the data into the target table. This only applies when the save-mode is in append;
-- merge.ByColumns: the name of multiple columns used for merging the data into the target table. This only applies when the save-mode is in append.
+- merge.byColumn: the name of a column used for merging the data into the target table. This only applies when the save-mode is append;
+- merge.ByColumns: the name of multiple columns used for merging the data into the target table. This only applies when the save-mode is append.
 
 Example:
 ```scala
