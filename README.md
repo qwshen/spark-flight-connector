@@ -1,4 +1,4 @@
-The spark-flight-connector is a Spark DataSource API (v2) that reads/writes data from/to Arrow-Flight end-points, such as Dremio Flight Server. Arrow Flight enables 
+The spark-flight-connector is an Apache-Spark DataSource API (v2) that reads/writes data from/to Arrow-Flight end-points, such as Dremio Flight Server. With proper partitioning, it supports fast load of large datasets by paralleling the read; for write, it supports all insert/merge/update/delete DML operations. With arrow-flight, it enables 
 high speed data transfer compared to ODBC/JDBC connections by utilizing the Apache Arrow format to avoid serializing and deserializing data.
 
 To build the project:
@@ -202,7 +202,7 @@ list | array
 struct | struct
 map | map
 
-Note: for Dremio Flight (up to v22.0.0), the Map type is converted to Struct. The connector detects the pattern and converts back to Map when reading data, and adapts to Struct when writing data.
+Note: for Dremio Flight, the Map type is converted to Struct. The connector detects the pattern and converts back to Map when reading data, and adapts to Struct when writing data (with v22.0.0 or above for write only).
 
 #### - Spark >> Arrow
 
@@ -241,9 +241,9 @@ The following is the type-mapping between Apache Arrow and Dremio end-point:
 This is also the default type-mapping used by the connector. To override it, please use the following option:
 ```scala worksheet
   df.write.format("flight")
-      .option( ... )    
       .option("write.protocol", "literal-sql")
       .option("write.typeMapping", "LARGEVARCHAR:VARCHAR;VARCHAR:VARCHAR;TINYINT:INT;SMALLINT:INT;UINT1:INT;UINT2:INT;UINT4:INT;UINT8:INT;INT:INT;BIGINT:BIGINT;FLOAT4:FLOAT;FLOAT8:DOUBLE;DECIMAL:DECIMAL;DECIMAL256:DECIMAL;DATE:DATE;TIME:TIME;TIMESTAMP:TIMESTAMP")
-    .mode("overwrite").save
+      .option(options)    //other options
+.mode("overwrite").save
 ```
 Currently, the binary, interval, complex types are not supported when using literal sql-statement for DML operations.
