@@ -29,7 +29,7 @@ The following properties are optional:
 - tls.enabled: whether the arrow-flight end-point is tls-enabled for secure communication;
 - tls.verifyServer - whether to verify the certificate from the arrow-flight end-point; Default: true if tls.enabled = true.
 - tls.truststore.jksFile: the trust-store file in jks format;
-- tls.truststore.pass: the pass code of the trust-store file;
+- tls.truststore.pass: the pass code of the trust-store;
 - column.quote: the character to quote the name of fields if any special character is used, such as the following sql statement:
 ```roomsql
   select id, "departure-time", "arrival-time" from flights where "flight-no" = 'ABC-21';
@@ -70,9 +70,9 @@ df.show
 
 #### - Partitioning:
 
-By default, the connector respects the partitioning from the source arrow-flight end-points, data from each end-point is put to one partition. However, the partitioning behavior can be customized with the following properties:
+By default, the connector respects the partitioning from the source arrow-flight end-points, data from each end-point is put to one partition. However, the partitioning behavior can be further customized with the following properties:
 - partition.size: the number of partitions in the final dataframe. The default is 6.
-- partition.byColumn: the name of a column used for partitioning. Only one column is supported. This is mandatory.
+- partition.byColumn: the name of a column used for partitioning. Only one column is supported. This is mandatory when custom partitioning is applied.
 - partition.lowerBound: the lower-bound of the by-column. This only applies when the data-type of the by-column is numeric or date-time.
 - partition.upperBound: the upper-bound of the by-column. This only applies when the data-type of the by-column is numeric or date-time.
 - partition.hashFunc: the name of the hash function supported in the arrow-flight end-points. This is required when the data-type of the by-column is not numeric or date-time, and the lower-bound, upper-bound are not provided. The default name is hash as defined in Dremio.
@@ -111,7 +111,7 @@ spark.read
     .option("partition.predicates", "1431654667 <= event_id and event_id < 2147481954;2147481954 <= event_id and event_id < 2863309242;2863309242 <= event_id and event_id < 3579136529") //concatenated with ;
   .flight(""""e-commerce".events""")
 ```
-Note: when lowerBound & upperBound with byColumn or predicates are used, they are eventually filters applied on the query to fetch data which may impact the final result-set. Please make sure these partitioning options
+Note: when lowerBound & upperBound with byColumn or predicates are used, they are eventually filters applied on the queries to fetch data which may impact the final result-set. Please make sure these partitioning options
 are not affecting the final output, but they are only for partitioning the output.
 
 #### - Pushing filter & columns down
@@ -125,7 +125,7 @@ spark.read
   .select("order_id", "customer_id", "payment_method", "order_amount", "order_date")  //required-columns are pushed down 
 ```
 
-### 2. Write data
+### 2. Write data (tables being written must be iceberg tables in case of Dremio Flight)
 ```scala
 df.write.format("flight")
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
@@ -155,9 +155,9 @@ df.write
   .flight(""""e-commerce".orders""")
 ```
 The following options are supported for writing:
-- write.protocol: the protocol of how to submit DML requests to flight end-points
+- write.protocol: the protocol of how to submit DML requests to flight end-points. It must be one of the following:
   - prepared-sql: the connector uses PreparedStatement of Flight-SQL to conduct all DML operations.
-  - literal-sql: the connector uses literal sql-statements for all DML operations. Type mapping between arrow and target flight end-point may be required, please check the Type-Mapping section below. This is the default protocol.
+  - literal-sql: the connector creates literal sql-statements for all DML operations. Type mapping between arrow and target flight end-point may be required, please check the Type-Mapping section below. This is the default protocol.
 - batch.size: the number of rows in each batch for writing. The default value is 1024. Note: depending on the size of each record, StackOverflowError might be thrown if the batch size is too big. In such case, adjust it to a smaller value. 
 - merge.byColumn: the name of a column used for merging the data into the target table. This only applies when the save-mode is append;
 - merge.ByColumns: the name of multiple columns used for merging the data into the target table. This only applies when the save-mode is append.

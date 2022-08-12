@@ -25,7 +25,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
    - User-Name: test
    - Password: Password@123
 
-8. Run the following sql statement to make sure all iceberg entries are set correctly:
+8. Open the SQL Runner on the Dremio Web UI, and run the following sql statement to make sure all iceberg entries are set correctly:
    ```roomsql
    SELECT name, bool_val, num_val FROM sys.options WHERE name like '%iceberg%'
    ```
@@ -37,7 +37,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
    dremio.iceberg.time_travel.enabled = true
    ```
 
-9. If any above property is not right, please open the SQL Runner on the Dremio Web UI, and execute the following commands to enable iceberg:
+9. If any above property is not set to true, please execute the following commands in the SQL Runner to enable iceberg:
    ```roomsql
    alter system set dremio.iceberg.enabled = true;
    alter system set dremio.iceberg.dml.enabled = true;
