@@ -29,7 +29,7 @@ import java.time.format.DateTimeFormatter;
 public class WriteStatement implements Serializable {
     //the toConversion interface
     @FunctionalInterface
-    private interface conversion<X, Y, Z, R> {
+    private interface conversion<X, Y, Z, R> extends Serializable {
         R apply(X x, Y y, Z z);
     }
     //the values variable

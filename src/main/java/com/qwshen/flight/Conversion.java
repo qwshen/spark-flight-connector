@@ -33,12 +33,12 @@ import java.util.stream.IntStream;
 public final class Conversion implements Serializable {
     //the fromConversion interface
     @FunctionalInterface
-    private interface fromConversion<X, Y, Z, R> {
+    private interface fromConversion<X, Y, Z, R> extends Serializable {
         R apply(X x, Y y, Z z);
     }
     //the toConversion interface
     @FunctionalInterface
-    private interface toConversion<A, B, C, D> {
+    private interface toConversion<A, B, C, D> extends Serializable {
         void apply(A a, B b, C c, D d);
     }
     //the cast method

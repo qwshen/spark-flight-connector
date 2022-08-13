@@ -51,7 +51,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
     mkdir -p /tmp/data
     # make sure the spark-flight-connector-1.0.jar is copied to the current directory
     # launch spark-sql. 
-    spark-shell --packages org.apache.iceberg:iceberg-spark-runtime-3.2_2.12:0.13.2 --jars ./spark-flight-connector-1.0.jar \
+    spark-shell --packages org.apache.iceberg:iceberg-spark-runtime-3.2_2.12:0.13.2 --jars ./spark-flight-connector_3.2.1-1.0.0.jar \
       --conf spark.sql.catalog.iceberg_catalog=org.apache.iceberg.spark.SparkCatalog \
       --conf spark.sql.catalog.iceberg_catalog.type=hadoop --conf spark.sql.catalog.iceberg_catalog.warehouse=file:///tmp/data
     ```
@@ -59,7 +59,6 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
 11. In spark-shell, run the following code to create the iceberg database and make the database as the current
     ```scala
     sql("create database iceberg_catalog.iceberg_db")
-    sql("show databases").show(false)   //make sure the new database has been created.
     sql("use iceberg_catalog.iceberg_db")
     ```
 
@@ -104,7 +103,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
     ```scala
     val df = spark.read.format("flight")
         .option("host", "127.0.0.1").option("port", "32010").option("user", "test").option("password", "Password@12345")
-        .option("table", """test."iceberg_db"."iceberg_customers"""")
+        .option("table", """"local-iceberg"."iceberg_db"."iceberg_customers"""")
     .load
     df.show(false)   //to show the records from the table
     ```
@@ -113,7 +112,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
     ```scala
     val df = spark.read.format("flight")
         .option("host", "127.0.0.1").option("port", "32010").option("user", "test").option("password", "Password@12345")
-        .option("table", """test."iceberg_db"."iceberg_customers"""")
+        .option("table", """"local-iceberg"."iceberg_db"."iceberg_customers"""")
     .load
     df.show(false)   //to show the records from the table
 
@@ -121,7 +120,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
     df.withColumn("customer_id", col("customer_id") + 90000)
       .write.format("flight")
         .option("host", "127.0.0.1").option("port", "32010").option("user", "test").option("password", "Password@12345")
-        .option("table", """test."iceberg_db"."iceberg_customers"""")
+        .option("table", """"local-iceberg"."iceberg_db"."iceberg_customers"""")
       .mode("overwrite").save()
     ```
     Then go to Dremio web-ui to check if new data has been inserted with the new customer ids.
