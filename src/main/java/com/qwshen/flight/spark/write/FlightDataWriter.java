@@ -33,7 +33,7 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
     private Field[] _fields = null;
     private FlightSqlClient.PreparedStatement _preparedStmt = null;
     private VectorSchemaRoot _root = null;
-    private Conversion _conversion = null;
+    private ArrowConversion _conversion = null;
 
     private final java.util.List<InternalRow> _rows;
 
@@ -63,7 +63,7 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
             this._arrowSchema = this._preparedStmt.getParameterSchema();
             this._fields = this._arrowSchema.getFields().toArray(new Field[0]);
             this._root = VectorSchemaRoot.create(this._arrowSchema, new RootAllocator(Integer.MAX_VALUE));
-            this._conversion = Conversion.getOrCreate();
+            this._conversion = ArrowConversion.getOrCreate();
         } else {
             try {
                 this._arrowSchema = this._stmt.getArrowSchema();

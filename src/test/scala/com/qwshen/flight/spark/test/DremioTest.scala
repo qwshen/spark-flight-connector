@@ -170,21 +170,6 @@ class DremioTest extends FunSuite with BeforeAndAfterEach {
     df.show()
   }
 
-  test("temp") {
-    val df = this.spark.read.format("flight")
-      .option("host", "192.168.0.27").option("port", "32010").option("user", "test").option("password", "Password@12345")
-      .option("table", """"tmp-iceberg"."iceberg_db"."iceberg_customers"""")
-      .load
-    df.cache.show(false)   //to show the records from the table
-
-    //overwrite
-    df.withColumn("customer_id", col("customer_id") + 90000)
-      .write.format("flight")
-      .option("host", "192.168.0.27").option("port", "32010").option("user", "test").option("password", "Password@12345")
-      .option("table", """"tmp-iceberg"."iceberg_db"."iceberg_customers"""")
-      .mode("overwrite").save()
-  }
-
   test("Write a simple table") {
     val query = """
         |select
