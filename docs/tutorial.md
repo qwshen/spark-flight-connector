@@ -21,11 +21,11 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
    dremio start
    ```
 
-7. In a browser, browse to http://127.0.0.1:9047 to open the Dremio Web Console. It is required to create an admin user the first time:
+7. In a browser, browse to http://127.0.0.1:9047 to open the Dremio Web Console. If this is your first time, you are required to create an admin user:
    - User-Name: test
    - Password: Password@123
 
-8. Open the SQL Runner on the Dremio Web UI, and run the following sql statement to make sure all iceberg entries are set correctly:
+8. Open the SQL Runner on the Dremio Web UI, and run the following query to make sure all iceberg entries are set correctly:
    ```roomsql
    SELECT name, bool_val, num_val FROM sys.options WHERE name like '%iceberg%'
    ```
@@ -56,7 +56,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
       --conf spark.sql.catalog.iceberg_catalog.type=hadoop --conf spark.sql.catalog.iceberg_catalog.warehouse=file:///tmp/data
     ```
 
-11. In spark-shell, run the following code to create the iceberg database and make the database as the current
+11. In spark-shell, run the following code to create the iceberg database and make it the current database:
     ```scala
     sql("create database iceberg_catalog.iceberg_db")
     sql("use iceberg_catalog.iceberg_db")
@@ -65,7 +65,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
 12. Create the customer table:
     ```scala
     sql("create table iceberg_customers(customer_id bigint not null, created_date string not null, company_name string, contact_person string, contact_phone string, active boolean) using iceberg;")
-    sql("show tables").show(false)   //make sure the customer table has been created.
+    sql("show tables").show(false)   // make sure the customer table has been created
     ```
 
 13. Insert a few records into the customers table
@@ -79,7 +79,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
     sql("select * from iceberg_customers").show(false)
     ```
 
-14. Go back to Dremio Web UI, and create a source pointing to /tmp/data.
+14. Go back to the Dremio Web UI, and create a source pointing to /tmp/data.
   - Open http://127.0.0.1:9047
   - Sign in with test/Password@123
   - Click on the Datasets icon in the top-left corner on the page, then click on the + button at right of "Data Lakes" link in the left-bottom corner of the page
@@ -88,7 +88,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
     - Mount-Path: /tmp/data
   - Click the Save button 
 
-15. Click the local_iceberg source to show the iceberg_customers table; hover mouse on the iceberg_customer item, and click on the "Format Folder" button, Dremio automatically detects the icerberg format, and click Save button to save the format.
+15. Click the local_iceberg source to show the iceberg_customers table; hover your mouse over the iceberg_customer item, and then click on the "Format Folder" button. Dremio will automatically detects the iceberg format. Click Save to save the format.
 
 16. Open SQL Runner, and run the following SQL statements:
     ```roomsql
@@ -108,7 +108,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
     df.show(false)   //to show the records from the table
     ```
 
-18. Truncate the table then insert
+18. Truncate the table, then run an insert:
     ```scala
     val df = spark.read.format("flight")
         .option("host", "127.0.0.1").option("port", "32010").option("user", "test").option("password", "Password@12345")
@@ -123,17 +123,17 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
         .option("table", """"local-iceberg"."iceberg_db"."iceberg_customers"""")
       .mode("overwrite").save()
     ```
-    Then go to Dremio web-ui to check if new data has been inserted with the new customer ids.
+    Then go to the Dremio web-ui to check if new data has been inserted with the new customer IDs.
 
-19. Merge by
+19. Run the following merge by:
     ```scala
     val df = spark.read.format("flight")
         .option("host", "127.0.0.1").option("port", "32010").option("user", "test").option("password", "Password@12345")
         .option("table", """test."iceberg_db"."iceberg_customers"""")
     .load
-    df.show(false)   //to show the records from the table
+    df.show(false)   // to show the records from the table
 
-    //overwrite
+    // overwrite
     df.withColumn("customer_id", when(col("customer_id") % 3 === lit(0), col("customer_id") + 90000).otherwise(col("customer_id")))
       .withColumn("created_date", current_date())
       .withColumn("company", when(col("company") === lit("ABC Manufacturing"), lit("Central Bank")).otherwise(col("company")))
@@ -143,5 +143,5 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
       .option("merge.byColumn", "customer_id")
     .mode("append").save()
     ```
-    Then go to Dremio web-ui to check data changes.
+    Then go to the Dremio web-ui to check data changes.
 
