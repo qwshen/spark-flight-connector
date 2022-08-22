@@ -1,41 +1,40 @@
-The spark-flight-connector is an Apache-Spark DataSource API (v2) that reads/writes data from/to Arrow-Flight end-points, such as Dremio Flight Server. With proper partitioning, it supports fast load of large datasets by paralleling the read; for write, it supports all insert/merge/update/delete DML operations. With arrow-flight, it enables 
-high speed data transfer compared to ODBC/JDBC connections by utilizing the Apache Arrow format to avoid serializing and deserializing data.
+**spark-flight-connector** is an Apache Spark DataSource API that reads/writes data from/to arrow-flight endpoints, such as Dremio Flight Server. With proper partitioning, it supports fast loading of large datasets by parallelizing reads. It also supports all insert/merge/update/delete DML operations for writes. With arrow-flight, it enables high speed data transfers compared to ODBC/JDBC connections by utilizing the Apache Arrow format to avoid serializing and deserializing data.
 
-To build the project:
+To build the project, run:
 ```shell
   mvn clean install -DskipTests
 ```
 
 The connector requires Spark 3.2.0+ due to the support of Interval types. For a quick start, please jump to this [tutorial](docs/tutorial.md).
 
-In order to connect to an arrow-flight end-point, the following properties are mandatory:
+In order to connect to an arrow-flight endpoint, the following properties are mandatory:
 
-- host: the full host-name or ip of an arrow-flight server;
-- port: the port number;
-- user: the user account for connecting to and reading/writing data from/to the arrow-flight end-point; 
-- password: the password of the user account;
-- table: the name of a table from/to which the connector reads/writes data. The table can be a physical data table, or any view. It can also be a select sql-statement or tables-joining statement. For example:
-  - select-statement
+- `host`: the full host-name or ip of an arrow-flight server;
+- `port`: the port number;
+- `user`: the user account for connecting to and reading/writing data from/to the arrow-flight endpoint; 
+- `password`: the password of the user account;
+- `table`: the name of a table from/to which the connector reads/writes data. The table can be a physical data table, or any view. It can also be a select sql-statement or tables-joining statement. For example:
+  - Select statement:
     ```roomsql
      select id, name, address from customers where city = 'TORONTO'
     ```
-  - tables-joining statement
+  - Join tables statement:
     ```roomsql
      orders o inner join customers c on o.customer_id = c.id
     ```
 
 The following properties are optional:
 
-- tls.enabled: whether the arrow-flight end-point is tls-enabled for secure communication;
-- tls.verifyServer - whether to verify the certificate from the arrow-flight end-point; Default: true if tls.enabled = true.
-- tls.truststore.jksFile: the trust-store file in jks format;
-- tls.truststore.pass: the pass code of the trust-store;
-- column.quote: the character to quote the name of fields if any special character is used, such as the following sql statement:
+- `tls.enabled`: whether the arrow-flight end-point is tls-enabled for secure communication;
+- `tls.verifyServer` - whether to verify the certificate from the arrow-flight end-point; Default: true if tls.enabled = true.
+- `tls.truststore.jksFile`: the trust-store file in jks format;
+- `tls.truststore.pass`: the pass code of the trust-store;
+- `column.quote`: the character to quote the name of fields if any special character is used, such as the following sql statement:
 ```roomsql
   select id, "departure-time", "arrival-time" from flights where "flight-no" = 'ABC-21';
 ```
 
-The connector supports optimized-read with filter, required-columns and count pushing-down, and parallel read when partitioning is enalbed.
+The connector supports optimized reads with filters, required columns and count pushing-down, and parallel reads when partitioning is enalbed.
 
 ### 1. Load data
 ```scala
@@ -70,16 +69,16 @@ df.show
 
 #### - Partitioning:
 
-By default, the connector respects the partitioning from the source arrow-flight end-points, data from each end-point is put to one partition. However, the partitioning behavior can be further customized with the following properties:
-- partition.size: the number of partitions in the final dataframe. The default is 6.
-- partition.byColumn: the name of a column used for partitioning. Only one column is supported. This is mandatory when custom partitioning is applied.
-- partition.lowerBound: the lower-bound of the by-column. This only applies when the data-type of the by-column is numeric or date-time.
-- partition.upperBound: the upper-bound of the by-column. This only applies when the data-type of the by-column is numeric or date-time.
-- partition.hashFunc: the name of the hash function supported in the arrow-flight end-points. This is required when the data-type of the by-column is not numeric or date-time, and the lower-bound, upper-bound are not provided. The default name is hash as defined in Dremio.
-- partition.predicate: each individual partitioning predicate is prefixed with this key.
-- partition.predicates: all partitioning predicates are concatenated by semi-colon (;) or comma (,).
+By default, the connector respects the partitioning from the source arrow-flight endpoints. Data from each endpoint is assigned to one partition. However, the partitioning behavior can be further customized with the following properties:
+- `partition.size`: the number of partitions in the final dataframe. The default is 6.
+- `partition.byColumn`: the name of a column used for partitioning. Only one column is supported. This is mandatory when custom partitioning is applied.
+- `partition.lowerBound`: the lower-bound of the by-column. This only applies when the data type of the by-column is numeric or date-time.
+- `partition.upperBound`: the upper-bound of the by-column. This only applies when the data type of the by-column is numeric or date-time.
+- `partition.hashFunc`: the name of the hash function supported in the arrow-flight end-points. This is required when the data-type of the by-column is not numeric or date-time, and the lower-bound, upper-bound are not provided. The default name is the hash as defined in Dremio.
+- `partition.predicate`: each individual partitioning predicate is prefixed with this key.
+- `partition.predicates`: all partitioning predicates, concatenated by semi-colons (;) or commas (,).
 
-Note:
+Notes:
 - The by-column may or may not be on the select-list. If not, hash-partitioning is used by default due to the fact that the data-type of the by-column is not available.
 - The lowerBound and upperBound must be both specified or none of them specified. If only of them specified, it is ignored.
 - When lowerBound and upperBound are specified, and if their values don't match or are not compatible with the data-type of the by-column, then hash-partitioning is applied.
@@ -111,8 +110,7 @@ spark.read
     .option("partition.predicates", "1431654667 <= event_id and event_id < 2147481954;2147481954 <= event_id and event_id < 2863309242;2863309242 <= event_id and event_id < 3579136529") //concatenated with ;
   .flight(""""e-commerce".events""")
 ```
-Note: when lowerBound & upperBound with byColumn or predicates are used, they are eventually filters applied on the queries to fetch data which may impact the final result-set. Please make sure these partitioning options
-are not affecting the final output, but they are only for partitioning the output.
+Note: when lowerBound & upperBound with byColumn or predicates are used, they are eventually filters applied on the queries to fetch data which may impact the final result-set. Please make sure these partitioning options do not affect the final output, but rather only apply for partitioning the output.
 
 #### - Pushing filter & columns down
 The filters and required-columns are pushed down when they are provided. This limits the data at the source which greatly decreases the amount of data being transferred and processed.
@@ -155,12 +153,12 @@ df.write
   .flight(""""e-commerce".orders""")
 ```
 The following options are supported for writing:
-- write.protocol: the protocol of how to submit DML requests to flight end-points. It must be one of the following:
-  - prepared-sql: the connector uses PreparedStatement of Flight-SQL to conduct all DML operations.
-  - literal-sql: the connector creates literal sql-statements for all DML operations. Type mapping between arrow and target flight end-point may be required, please check the Type-Mapping section below. This is the default protocol.
-- batch.size: the number of rows in each batch for writing. The default value is 1024. Note: depending on the size of each record, StackOverflowError might be thrown if the batch size is too big. In such case, adjust it to a smaller value. 
-- merge.byColumn: the name of a column used for merging the data into the target table. This only applies when the save-mode is append;
-- merge.ByColumns: the name of multiple columns used for merging the data into the target table. This only applies when the save-mode is append.
+- `write.protocol`: the protocol of how to submit DML requests to flight end-points. It must be one of the following:
+  - `prepared-sql`: the connector uses PreparedStatement of Flight-SQL to conduct all DML operations.
+  - `literal-sql`: the connector creates literal sql-statements for all DML operations. Type mappings between arrow and target flight end-point may be required, please check the Type-Mapping section below. This is the default protocol.
+- `batch.size: the number of rows in each batch for writing. The default value is 1024. Note: depending on the size of each record, StackOverflowError might be thrown if the batch size is too big. In such case, adjust it to a smaller value. 
+- `merge.byColumn`: the name of a column used for merging the data into the target table. This only applies when the save-mode is append;
+- `merge.ByColumns`: the name of multiple columns used for merging the data into the target table. This only applies when the save-mode is append.
 
 Example:
 ```scala
@@ -248,4 +246,4 @@ This is also the default type-mapping used by the connector. To override it, ple
       .option(options)    //other options
 .mode("overwrite").save
 ```
-Currently, the binary, interval, complex types are not supported when using literal sql-statement for DML operations.
+Currently, the binary, interval, and complex types are not supported when using literal sql-statement for DML operations.
