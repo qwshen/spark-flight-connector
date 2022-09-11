@@ -133,7 +133,7 @@ This tutorial uses Dremio Community Edition v22.0.0 or above as the back-end Arr
     .load
     df.show(false)   // to show the records from the table
 
-    // overwrite
+    // merge-by
     df.withColumn("customer_id", when(col("customer_id") % 3 === lit(0), col("customer_id") + 90000).otherwise(col("customer_id")))
       .withColumn("created_date", current_date())
       .withColumn("company", when(col("company") === lit("ABC Manufacturing"), lit("Central Bank")).otherwise(col("company")))
