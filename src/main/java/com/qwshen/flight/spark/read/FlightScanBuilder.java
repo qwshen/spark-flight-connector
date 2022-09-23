@@ -2,13 +2,17 @@ package com.qwshen.flight.spark.read;
 
 import com.qwshen.flight.Configuration;
 import com.qwshen.flight.PartitionBehavior;
+import com.qwshen.flight.PushAggregation;
 import com.qwshen.flight.Table;
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation;
+import org.apache.spark.sql.connector.expressions.aggregate.*;
 import org.apache.spark.sql.connector.read.*;
 import org.apache.spark.sql.sources.*;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -24,8 +28,9 @@ public final class FlightScanBuilder implements ScanBuilder, SupportsPushDownFil
     private Filter[] _pdFilters = new Filter[0];
     //the pushed-down columns
     private StructField[] _pdColumns = new StructField[0];
-    //only supports pushed-down COUNT
-    private boolean _pdCount = false;
+
+    //pushed-down aggregation
+    private PushAggregation _pdAggregation = null;
 
     /**
      * Construct a flight-scan builder
@@ -40,14 +45,45 @@ public final class FlightScanBuilder implements ScanBuilder, SupportsPushDownFil
     }
 
     /**
-     * Only COUNT is supported for now
+     * Collection aggregations that will be pushed down
      * @param aggregation - the pushed aggregation
-     * @return - true if COUNT is pushed
+     * @return - pushed aggregation
      */
     @Override
     public boolean pushAggregation(Aggregation aggregation) {
-        this._pdCount = Arrays.stream(aggregation.aggregateExpressions()).map(e -> e.toString().equalsIgnoreCase("count(*)")).findFirst().orElse(false);
-        return this._pdCount;
+        Function<String, String> quote = (s) -> String.format("%s%s%s", this._table.getColumnQuote(), s, this._table.getColumnQuote());
+        Function<String[], String> mks = (ss) -> String.join(",", Arrays.stream(ss).map(quote).toArray(String[]::new));
+
+        List<String> pdAggregateColumns = new ArrayList<>();
+        boolean push = true;
+        for (AggregateFunc agg : aggregation.aggregateExpressions()) {
+            if (agg instanceof CountStar) {
+                pdAggregateColumns.add(agg.toString().toLowerCase());
+            } else if (agg instanceof Count) {
+                Count c = (Count)agg;
+                pdAggregateColumns.add(c.isDistinct() ? String.format("count(distinct(%s))", mks.apply(c.column().fieldNames())) : String.format("count(%s)", mks.apply(c.column().fieldNames())));
+            } else if (agg instanceof Min) {
+                Min m = (Min)agg;
+                pdAggregateColumns.add(String.format("min(%s)", mks.apply(m.column().fieldNames())));
+            } else if (agg instanceof Max) {
+                Max m = (Max)agg;
+                pdAggregateColumns.add(String.format("max(%s)", mks.apply(m.column().fieldNames())));
+            } else if (agg instanceof Sum) {
+                Sum s = (Sum)agg;
+                pdAggregateColumns.add(s.isDistinct() ? String.format("sum(distinct(%s))", mks.apply(s.column().fieldNames())) : String.format("sum(%s)", mks.apply(s.column().fieldNames())));
+            } else {
+                push = false;
+                break;
+            }
+        };
+        if (push) {
+            String[] pdGroupByColumns = Arrays.stream(aggregation.groupByColumns()).flatMap(gbc -> Arrays.stream(gbc.fieldNames()).map(quote)).toArray(String[]::new);
+            pdAggregateColumns.addAll(0, Arrays.asList(pdGroupByColumns));
+            this._pdAggregation = pdGroupByColumns.length > 0 ? new PushAggregation(pdAggregateColumns.toArray(new String[0]), pdGroupByColumns) : new PushAggregation(pdAggregateColumns.toArray(new String[0]));
+        } else {
+            this._pdAggregation = null;
+        }
+        return this._pdAggregation != null;
     }
 
     /**
@@ -105,7 +141,7 @@ public final class FlightScanBuilder implements ScanBuilder, SupportsPushDownFil
     public Scan build() {
         //adjust flight-table upon pushed filters & columns
         String where = String.join(" and ", Arrays.stream(this._pdFilters).map(this._table::toWhereClause).toArray(String[]::new));
-        if (this._table.probe(where, this._pdColumns, this._pdCount, this._partitionBehavior)) {
+        if (this._table.probe(where, this._pdColumns, this._pdAggregation, this._partitionBehavior)) {
             this._table.initialize(this._configuration);
         }
         return new FlightScan(this._configuration, this._table);

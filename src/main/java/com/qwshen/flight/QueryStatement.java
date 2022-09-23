@@ -8,15 +8,18 @@ import java.io.Serializable;
 public class QueryStatement implements Serializable {
     private final String _stmt;
     private final String _where;
+    private final String _groupBy;
 
     /**
      * Construct a ReadStatement
      * @param stmt - the select portion of a select-statement
      * @param where - the where portion of a select-statement
+     * @param groupBy - the groupBy portion of a select-statement
      */
-    public QueryStatement(String stmt, String where) {
+    public QueryStatement(String stmt, String where, String groupBy) {
         this._stmt = stmt;
         this._where = where;
+        this._groupBy = groupBy;
     }
 
     /**
@@ -29,6 +32,9 @@ public class QueryStatement implements Serializable {
         if (!changed) {
             changed = (rs._where != null) ? !rs._where.equalsIgnoreCase(this._where) : this._where != null;
         }
+        if (!changed) {
+            changed = (rs._groupBy != null) ? !rs._groupBy.equalsIgnoreCase(this._groupBy) : this._groupBy != null;
+        }
         return changed;
     }
 
@@ -37,6 +43,9 @@ public class QueryStatement implements Serializable {
      * @return - the select-statement
      */
     public String getStatement() {
-        return (this._where != null && this._where.length() > 0) ? String.format("%s where %s", this._stmt, this._where) : this._stmt;
+        return String.format("%s %s %s", this._stmt,
+            (this._where != null && this._where.length() > 0) ? String.format("where %s", this._where) : "",
+            (this._groupBy != null && this._groupBy.length() > 0) ? String.format("group by %s", this._groupBy) : ""
+        );
     }
 }

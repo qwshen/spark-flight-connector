@@ -1,13 +1,19 @@
 package com.qwshen.flight;
 
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.parquet.Strings;
 import org.apache.spark.sql.sources.*;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.LoggerFactory;
+import scala.Array;
+import scala.collection.mutable.HashTable;
+
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Hashtable;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
@@ -41,7 +47,7 @@ public final class Table implements Serializable {
         this._name = name;
         this._columnQuote = columnQuote;
 
-        this.prepareQueryStatement(false, null, null, null);
+        this.prepareQueryStatement(null, null, null, null);
     }
 
     /**
@@ -122,23 +128,50 @@ public final class Table implements Serializable {
     }
 
     //Prepare the query for submitting to remote flight service
-    private boolean prepareQueryStatement(Boolean forCount, StructField[] fields, String filter, PartitionBehavior partitionBehavior) {
-        String selectStmt = forCount ? String.format("select count(*) from %s", this._name)
-            : (fields == null || fields.length == 0) ? String.format("select * from %s", this._name)
-            : String.format("select %s from %s", String.join(",", Arrays.stream(fields).map(column -> String.format("%s%s%s", this._columnQuote, column.name(), this._columnQuote)).toArray(String[]::new)), this._name);
-        QueryStatement stmt = new QueryStatement(selectStmt, filter);
+    private boolean prepareQueryStatement(PushAggregation aggregation, StructField[] fields, String filter, PartitionBehavior partitionBehavior) {
+        //aggregation mode: 0 -> no aggregation; 1 -> aggregation without group-by; 2 -> aggregation with group-by
+        int aggMode = 0;
+        String select = "", groupBy = "";
+        if (aggregation != null) {
+            String[] groupByFields = aggregation.getGroupByColumns();
+            if (groupByFields != null && groupByFields.length > 0) {
+                aggMode = 2;
+                groupBy = String.join(",", groupByFields);
+            } else {
+                aggMode = 1;
+            }
+            select = String.format("select %s from %s", String.join(",", aggregation.getColumnExpressions()), this._name);
+        } else if (fields != null && fields.length > 0) {
+            select = String.format("select %s from %s", String.join(",", Arrays.stream(fields).map(column -> String.format("%s%s%s", this._columnQuote, column.name(), this._columnQuote)).toArray(String[]::new)), this._name);
+        } else {
+            select = String.format("select * from %s", this._name);
+        }
+        QueryStatement stmt = new QueryStatement(select, filter, groupBy);
         boolean changed = stmt.different(this._stmt);
         if (changed) {
             this._stmt = stmt;
         }
 
-        if (forCount) {
+        if (aggMode == 1) {
             this._partitionStmts.clear();
         } else if (partitionBehavior != null && partitionBehavior.enabled()) {
-            String baseWhere = (filter != null && !filter.isEmpty()) ? String.format("(%s) and ", filter) : "";
-            Function<String, StructField> find = (name) -> (fields != null) ? Arrays.stream(fields).filter(field -> field.name().equalsIgnoreCase(name)).findFirst().orElse(null) : null;
-            String[] predicates = partitionBehavior.predicateDefined() ? partitionBehavior.getPredicates() : partitionBehavior.calculatePredicates(fields);
-            Arrays.stream(predicates).forEach(predicate -> this._partitionStmts.add(String.format("%s where %s(%s)", selectStmt, baseWhere, predicate)));
+            String where = (filter != null && !filter.isEmpty()) ? String.format("(%s) and ", filter) : "";
+            BiFunction<StructField[], StructField[], StructField[]> merge = (s1, s2) -> {
+                Hashtable<String, StructField> s = new Hashtable<String, StructField>();
+                for (StructField sf : s1) {
+                    s.put(sf.name(), sf);
+                }
+                for (StructField sf : s2) {
+                    s.put(sf.name(), sf);
+                }
+                return s.values().toArray(new StructField[0]);
+            };
+            String[] predicates = partitionBehavior.predicateDefined() ? partitionBehavior.getPredicates()
+                : partitionBehavior.calculatePredicates(this._sparkSchema == null ? fields : merge.apply(fields, this._sparkSchema.fields()));
+            for (String predicate : predicates) {
+                QueryStatement s = new QueryStatement(select, String.format("%s(%s)", where, predicate), groupBy);
+                this._partitionStmts.add(s.getStatement());
+            }
         }
         return changed;
     }
@@ -202,15 +235,15 @@ public final class Table implements Serializable {
      * Probe if the pushed filter, fields and aggregation would affect the existing schema & end-points
      * @param pushedFilter - the pushed filter
      * @param pushedFields - the pushed fields
-     * @param pushedCount - the pushed count aggregation
+     * @param pushedAggregation - the pushed aggregation
      * @param partitionBehavior - the partitioning behavior
      * @return - true if initialization is required
      */
-    public Boolean probe(String pushedFilter, StructField[] pushedFields, boolean pushedCount, PartitionBehavior partitionBehavior) {
-        if ((pushedFilter == null || pushedFilter.isEmpty()) && (pushedFields == null || pushedFields.length == 0) && !pushedCount) {
+    public Boolean probe(String pushedFilter, StructField[] pushedFields, PushAggregation pushedAggregation, PartitionBehavior partitionBehavior) {
+        if ((pushedFilter == null || pushedFilter.isEmpty()) && (pushedFields == null || pushedFields.length == 0) && pushedAggregation == null) {
             return false;
         }
-        return this.prepareQueryStatement(pushedCount, pushedFields, pushedFilter, partitionBehavior);
+        return this.prepareQueryStatement(pushedAggregation, pushedFields, pushedFilter, partitionBehavior);
     }
 
     /**

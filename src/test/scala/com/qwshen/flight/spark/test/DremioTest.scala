@@ -1,13 +1,13 @@
 package com.qwshen.flight.spark.test
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.functions.{col, lit, struct, when, map, array}
+import org.apache.spark.sql.functions.{array, col, count, countDistinct, lit, map, max, min, struct, sum, sum_distinct, when}
 import org.scalatest.{BeforeAndAfterEach, FunSuite}
 
 class DremioTest extends FunSuite with BeforeAndAfterEach {
-  private val dremioHost = "192.168.0.27"
+  private val dremioHost = "192.168.0.22"
   private val dremioPort = "32010"
-  private val dremioTlsEnabled = false;
+  private val dremioTlsEnabled = false
   private val user = "test"
   private val password = "Password@12345"
 
@@ -170,6 +170,81 @@ class DremioTest extends FunSuite with BeforeAndAfterEach {
     df.show()
   }
 
+  test("Query a table with aggregation") {
+    val table = """"local-iceberg".iceberg_db.log_events_iceberg_table_events"""
+    val run: SparkSession => DataFrame = this.load(Map("table" -> table), None, Nil)
+    val df = this.execute(run)
+
+    df.agg(max(col("float_amount")).as("max_float_amount"), sum(col("double_amount")).as("sum_double_amount")).show()
+    df.filter(col("float_amount") >= lit(2.34f)).agg(max(col("float_amount")).as("max_float_amount"), sum(col("double_amount")).as("sum_double_amount")).show()
+
+    //df.limit(10).show() //not supported
+    //df.distinct().show()  //not supported
+
+    df.filter(col("float_amount") >= lit(2.34f))
+      .groupBy(col("gender"), col("birthyear"))
+      .agg(
+        countDistinct(col("event_id")).as("distinct_count"),
+        count(col("event_id")).as("count"),
+        max(col("float_amount")).as("max_float_amount"),
+        min(col("float_amount")).as("min_float_amount"),
+        //avg(col("decimal_amount")).as("avg_decimal_amount"),  //not supported
+        sum_distinct(col("double_amount")).as("distinct_sum_double_amount"),
+        sum(col("double_amount")).as("sum_double_amount")
+      )
+      .show()
+  }
+
+  test("Query a table with aggregation with partitioning by hashing") {
+    val table = """"local-iceberg".iceberg_db.log_events_iceberg_table_events"""
+    val run: SparkSession => DataFrame = this.load(Map("table" -> table, "partition.size" -> "3", "partition.byColumn" -> "event_id"), None, Nil)
+    val df = this.execute(run)
+
+    df.agg(max(col("float_amount")).as("max_float_amount"), sum(col("double_amount")).as("sum_double_amount")).show()
+    df.filter(col("float_amount") >= lit(2.34f)).agg(max(col("float_amount")).as("max_float_amount"), sum(col("double_amount")).as("sum_double_amount")).show()
+
+    //df.limit(10).show() //not supported
+    //df.distinct().show()  //not supported
+
+    df.filter(col("float_amount") >= lit(2.34f))
+      .groupBy(col("gender"), col("birthyear"))
+      .agg(
+        countDistinct(col("event_id")).as("distinct_count"),
+        count(col("event_id")).as("count"),
+        max(col("float_amount")).as("max_float_amount"),
+        min(col("float_amount")).as("min_float_amount"),
+        //avg(col("decimal_amount")).as("avg_decimal_amount"),  //not supported
+        sum_distinct(col("double_amount")).as("distinct_sum_double_amount"),
+        sum(col("double_amount")).as("sum_double_amount")
+      )
+      .show()
+  }
+
+  test("Query a table with aggregation with partitioning by lower/upper bounds") {
+    val table = """"local-iceberg".iceberg_db.log_events_iceberg_table_events"""
+    val run: SparkSession => DataFrame = this.load(Map("table" -> table, "partition.size" -> "3", "partition.byColumn" -> "start_date", "partition.lowerBound" -> "2012-10-01", "partition.upperBound" -> "2012-12-31"), None, Nil)
+    val df = this.execute(run)
+
+    df.agg(max(col("float_amount")).as("max_float_amount"), sum(col("double_amount")).as("sum_double_amount")).show()
+    df.filter(col("float_amount") >= lit(2.34f)).agg(max(col("float_amount")).as("max_float_amount"), sum(col("double_amount")).as("sum_double_amount")).show()
+
+    //df.limit(10).show() //not supported
+    //df.distinct().show()  //not supported
+
+    df.filter(col("float_amount") >= lit(2.34f))
+      .groupBy(col("gender"), col("start_date"))
+      .agg(
+        countDistinct(col("event_id")).as("distinct_count"),
+        count(col("event_id")).as("count"),
+        max(col("float_amount")).as("max_float_amount"),
+        min(col("float_amount")).as("min_float_amount"),
+        //avg(col("decimal_amount")).as("avg_decimal_amount"),  //not supported
+        sum_distinct(col("double_amount")).as("distinct_sum_double_amount"),
+        sum(col("double_amount")).as("sum_double_amount")
+      )
+      .show()
+  }
+
   test("Write a simple table") {
     val query = """
         |select
@@ -216,7 +291,7 @@ class DremioTest extends FunSuite with BeforeAndAfterEach {
     val df = this.execute(runLoad).cache
 
     //append
-    var dstTable = """"local-iceberg"."iceberg_db"."iceberg_events""""
+    val dstTable = """"local-iceberg"."iceberg_db"."iceberg_events""""
     val dfAppend = df.limit(10000)
       .withColumn("event_id", col("event_id") + 1000000000L)
       .withColumn("remark", lit("new"))
@@ -230,7 +305,7 @@ class DremioTest extends FunSuite with BeforeAndAfterEach {
     val df = this.execute(runLoad).filter(col("user_id").isin("781622845", "1519813515", "1733137333", "3709565024")).cache
 
     //the target table
-    var dstTable = """"local-iceberg"."iceberg_db"."iceberg_events""""
+    val dstTable = """"local-iceberg"."iceberg_db"."iceberg_events""""
 
     //append for struct
     val dfStruct = df.filter(col("user_id") === lit("781622845") || col("user_id") === lit("3709565024"))
@@ -312,10 +387,11 @@ class DremioTest extends FunSuite with BeforeAndAfterEach {
       .mode("append").save
   }
 
-  private var spark: SparkSession = _
   //create spark-session
-  override def beforeEach(): Unit = spark = SparkSession.builder.master("local[*]").config("spark.executor.memory", "24g").config("spark.driver.memory", "24g").appName("test").getOrCreate
+  private var spark: SparkSession = _
   //execute a job
   private def execute[T](run: SparkSession => T): T = run(spark)
+
+  override def beforeEach(): Unit = spark = SparkSession.builder.master("local[*]").config("spark.executor.memory", "24g").config("spark.driver.memory", "24g").appName("test").getOrCreate
   override def afterEach(): Unit = spark.stop()
 }

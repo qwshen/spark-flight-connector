@@ -34,7 +34,7 @@ The following properties are optional:
   select id, "departure-time", "arrival-time" from flights where "flight-no" = 'ABC-21';
 ```
 
-The connector supports optimized reads with filters, required columns and count pushing-down, and parallel reads when partitioning is enalbed.
+The connector supports optimized reads with filters, required columns and aggregation pushing-down, and parallel reads when partitioning is enabled.
 
 ### 1. Load data
 ```scala
@@ -113,7 +113,7 @@ spark.read
 Note: when lowerBound & upperBound with byColumn or predicates are used, they are eventually filters applied on the queries to fetch data which may impact the final result-set. Please make sure these partitioning options do not affect the final output, but rather only apply for partitioning the output.
 
 #### - Pushing filter & columns down
-The filters and required-columns are pushed down when they are provided. This limits the data at the source which greatly decreases the amount of data being transferred and processed.
+Filters and required-columns are pushed down when they are provided. This limits the data at the source which greatly decreases the amount of data being transferred and processed.
 ```scala
 spark.read
       .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
@@ -121,6 +121,36 @@ spark.read
     .flight(""""e-commerce".orders""")
   .filter("order_date > '2020-01-01' and order_amount > 100")  //filter is pushed down
   .select("order_id", "customer_id", "payment_method", "order_amount", "order_date")  //required-columns are pushed down 
+```
+
+#### - Pushing aggregation down
+Aggregations are pushed down when they are provided. Only the following aggregations are supported:
+- max
+- min
+- count
+- count distinct
+- sum
+- sum distinct
+
+For avg, it can be achieved by combining count & sum. For any other aggregations, they are calculated at Spark level.
+
+```scala
+val df = spark.read
+      .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
+      .options(options)  //other options
+    .flight(""""e-commerce".orders""")
+  .filter("order_date > '2020-01-01' and order_amount > 100")  //filter is pushed down
+
+df.agg(count(col("order_id")).as("num_orders"), sum(col("amount")).as("total_amount")).show()  //aggregation pushed down
+
+df.groupBy(col("gender"))
+  .agg(  
+    countDistinct(col("order_id")).as("num_orders"),
+    max(col("amount")).as("max_amount"),
+    min(col("amount")).as("min_amount"),
+    sum(col("amount")).as("total_amount")
+  )  //aggregation pushed down
+  .show()
 ```
 
 ### 2. Write data (tables being written must be iceberg tables in case of Dremio Flight)
