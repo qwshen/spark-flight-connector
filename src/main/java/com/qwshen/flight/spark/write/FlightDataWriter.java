@@ -20,8 +20,9 @@ import java.util.stream.IntStream;
  * Flight DataWriter writes rows to the target flight table
  */
 public class FlightDataWriter implements DataWriter<InternalRow> {
-    private final int _partitionId;
-    private final long _taskId;
+    private int _partitionId;
+    private long _taskId;
+    private String _epochId;
 
     private final StructType _dataSchema;
     private final Schema _arrowSchema;
@@ -36,27 +37,53 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
     private ArrowConversion _conversion = null;
 
     private final java.util.List<InternalRow> _rows;
-
     private long _count = 0;
-    private String _error = "";
 
     /**
-     * Construct a DataWriter
+     * Construct a DataWriter for batch write
      * @param partitionId - the partition id of the data block to be written
      * @param taskId - the task id of the write operation
      * @param configuration - the configuration of remote flight service
      * @param protocol - the protocol for writing - sql or arrow
      * @param stmt - the write-statement
-     * @param batchSize - the batch size for the write
+     * @param batchSize - the batch size for write
      */
     public FlightDataWriter(int partitionId, long taskId, Configuration configuration, WriteStatement stmt, WriteProtocol protocol, int batchSize) {
+        this(configuration, stmt, protocol, batchSize);
         this._partitionId = partitionId;
         this._taskId = taskId;
+        this._epochId = "";
+    }
 
+    /**
+     * Construct a DataWriter for streaming write
+     * @param partitionId - the partition id of the data block to be written
+     * @param taskId - the task id of the write operation
+     * @param configuration - the configuration of remote flight service
+     * @param protocol - the protocol for writing - sql or arrow
+     * @param stmt - the write-statement
+     * @param batchSize - the batch size for write
+     * @param epochId - a monotonically increasing id for streaming queries that are split into discrete periods of execution.
+     */
+    public FlightDataWriter(int partitionId, long taskId, long epochId, Configuration configuration, WriteStatement stmt, WriteProtocol protocol, int batchSize) {
+        this(configuration, stmt, protocol, batchSize);
+        this._partitionId = partitionId;
+        this._taskId = taskId;
+        this._epochId = Long.toString(epochId);
+    }
+
+    /**
+     * Internal Constructor
+     * @param configuration - the configuration of remote flight service
+     * @param protocol - the protocol for writing - sql or arrow
+     * @param stmt - the write-statement
+     * @param batchSize - the batch size for write
+     */
+    private FlightDataWriter(Configuration configuration, WriteStatement stmt, WriteProtocol protocol, int batchSize) {
         this._stmt = stmt;
         this._batchSize = batchSize;
 
-        this._dataSchema = this._stmt.getDataSchema();;
+        this._dataSchema = this._stmt.getDataSchema();
         this._client = Client.getOrCreate(configuration);
         if (protocol == WriteProtocol.PREPARED_SQL) {
             this._preparedStmt = this._client.getPreparedStatement(this._stmt.getStatement());
@@ -110,7 +137,7 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
     }
 
     /**
-     * Commit the write
+     * Commit write
      * @return - a commit-message
      */
     @Override
@@ -123,20 +150,18 @@ public class FlightDataWriter implements DataWriter<InternalRow> {
 
         long cnt = this._count;
         this._count = 0;
-        this._error = "";
-        return new FlightWriterCommitMessage(this._partitionId, this._taskId, cnt);
+        return (this._epochId.length() == 0) ? new FlightWriterCommitMessage(this._partitionId, this._taskId, cnt)
+            : new FlightWriterCommitMessage(this._partitionId, this._taskId, this._epochId, cnt);
     }
 
     /**
-     * Abort the write
+     * Abort write
      * @throws IOException - the exception with the error message
      */
     @Override
     public void abort() throws IOException {
-        String err = this._error;
-        this._count = 0;
-        this._error = "";
-        throw new IOException(err);
+        throw (this._epochId.length() == 0) ? new FlightWriteAbortException(this._partitionId, this._taskId, this._count)
+            : new FlightWriteAbortException(this._partitionId, this._taskId, this._epochId, this._count);
     }
 
     /**

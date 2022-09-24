@@ -4,6 +4,7 @@ import com.qwshen.flight.*;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.write.DataWriter;
 import org.apache.spark.sql.connector.write.DataWriterFactory;
+import org.apache.spark.sql.connector.write.streaming.StreamingDataWriterFactory;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.LoggerFactory;
 import java.util.Arrays;
@@ -11,7 +12,7 @@ import java.util.Arrays;
 /**
  * Defines the FLightDataWriterFactory to create DataWriters
  */
-public class FlightDataWriterFactory implements DataWriterFactory {
+public class FlightDataWriterFactory implements DataWriterFactory, StreamingDataWriterFactory {
     private final Configuration _configuration;
 
     private final WriteStatement _stmt;
@@ -53,7 +54,7 @@ public class FlightDataWriterFactory implements DataWriterFactory {
     }
 
     /**
-     * Create a DataWriter
+     * Create a DataWriter for batch-write
      * @param partitionId - the partition id
      * @param taskId - the task id
      * @return - a DataWriter
@@ -61,5 +62,17 @@ public class FlightDataWriterFactory implements DataWriterFactory {
     @Override
     public DataWriter<InternalRow> createWriter(int partitionId, long taskId) {
         return new FlightDataWriter(partitionId, taskId, this._configuration, this._stmt, this._protocol, this._batchSize);
+    }
+
+    /**
+     * Create a DataWriter for streaming-write
+     * @param partitionId - the partition id
+     * @param taskId - the task id
+     * @param epochId - a monotonically increasing id for streaming queries that are split into discrete periods of execution.
+     * @return - a DataWriter
+     */
+    @Override
+    public DataWriter<InternalRow> createWriter(int partitionId, long taskId, long epochId) {
+        return new FlightDataWriter(partitionId, taskId, epochId, this._configuration, this._stmt, this._protocol, this._batchSize);
     }
 }
