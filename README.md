@@ -59,6 +59,7 @@ df.show
 ```
 or 
 ```scala
+import com.qwshen.flight.spark.implicits._
 val df = spark.read
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
     .optoin("column.quote", "\"")
@@ -86,6 +87,7 @@ Notes:
 Examples:
 ```scala
 //with lower-bound & upper-bound
+import com.qwshen.flight.spark.implicits._
 spark.read
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
     .optoin("column.quote", "\"")
@@ -94,6 +96,7 @@ spark.read
 ```
 ```scala
 //with hash-function
+import com.qwshen.flight.spark.implicits._
 spark.read
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
     .optoin("column.quote", "\"")
@@ -102,6 +105,7 @@ spark.read
 ```
 ```scala
 //with predicates
+import com.qwshen.flight.spark.implicits._
 spark.read
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
     .optoin("column.quote", "\"")
@@ -115,6 +119,7 @@ Note: when lowerBound & upperBound with byColumn or predicates are used, they ar
 #### - Pushing filter & columns down
 Filters and required-columns are pushed down when they are provided. This limits the data at the source which greatly decreases the amount of data being transferred and processed.
 ```scala
+import com.qwshen.flight.spark.implicits._
 spark.read
       .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
       .options(options)  //other options
@@ -153,7 +158,7 @@ df.groupBy(col("gender"))
   .show()
 ```
 
-### 2. Write data (tables being written must be iceberg tables in case of Dremio Flight)
+### 2. Write & Streaming-Write data (tables being written must be iceberg tables in case of Dremio Flight)
 ```scala
 df.write.format("flight")
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
@@ -165,6 +170,7 @@ df.write.format("flight")
 ```
 or
 ```scala
+import com.qwshen.flight.spark.implicits._
 df.write
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
     .option("table", """"e-commerce".orders""")
@@ -175,12 +181,22 @@ df.write
 ```
 or
 ```scala
+import com.qwshen.flight.spark.implicits._
 df.write
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
     .option("merge.byColumns", "order_id,customer_id").optoin("column.quote", "\"")
     .options(options)  //other options
     .mode("append")
   .flight(""""e-commerce".orders""")
+```
+```scala
+df.writeStream.format("flight")
+    .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
+    .options(options)  //other options
+  .trigger(Trigger.Continuous(1000))
+  .outputMode(OutputMode.Complete())
+  .start()
+  .awaitTermination(6000)
 ```
 The following options are supported for writing:
 - `write.protocol`: the protocol of how to submit DML requests to flight end-points. It must be one of the following:
@@ -191,6 +207,7 @@ The following options are supported for writing:
 - `merge.ByColumns`: the name of multiple columns used for merging the data into the target table. This only applies when the save-mode is `append`.
 
 Example:
+- Batch Write
 ```scala
 df.write
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
@@ -199,6 +216,16 @@ df.write
     .option("merge.byColumns", "order_date;order_amount") //concatenated with ;    
     .mode("append")
   .flight(""""e-commerce".orders""")
+```
+- Streaming Write
+```scala
+df.writeStream.format("flight")
+    .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
+    .optoin("batch.size", 640)
+  .trigger(Trigger.Once())
+  .outputMode(OutputMode.Append())
+  .start()
+  .awaitTermination(300000)
 ```
 
 ### 3. Data-type Mapping
