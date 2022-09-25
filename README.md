@@ -189,9 +189,12 @@ df.write
     .mode("append")
   .flight(""""e-commerce".orders""")
 ```
+streaming-write
 ```scala
 df.writeStream.format("flight")
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
+    .option("table", """"e-commerce".orders""")
+    .option("checkpointLocation", "/tmp/checkpointing")        
     .options(options)  //other options
   .trigger(Trigger.Continuous(1000))
   .outputMode(OutputMode.Complete())
@@ -221,6 +224,8 @@ df.write
 ```scala
 df.writeStream.format("flight")
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
+    .option("table", """"local-iceberg".iceberg_db.iceberg_events""")
+    .option("checkpointLocation", s"/tmp/staging/checkpoint/events")        
     .optoin("batch.size", 640)
   .trigger(Trigger.Once())
   .outputMode(OutputMode.Append())
