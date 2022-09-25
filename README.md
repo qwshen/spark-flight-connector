@@ -209,7 +209,7 @@ The following options are supported for writing:
 - `merge.byColumn`: the name of a column used for merging the data into the target table. This only applies when the save-mode is `append`;
 - `merge.ByColumns`: the name of multiple columns used for merging the data into the target table. This only applies when the save-mode is `append`.
 
-Example:
+Examples:
 - Batch Write
 ```scala
 df.write
