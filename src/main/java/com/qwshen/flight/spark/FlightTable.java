@@ -70,6 +70,7 @@ public class FlightTable implements org.apache.spark.sql.connector.catalog.Table
         this._capabilities.add(TableCapability.BATCH_READ);
         this._capabilities.add(TableCapability.BATCH_WRITE);
         this._capabilities.add(TableCapability.TRUNCATE);
+        this._capabilities.add(TableCapability.STREAMING_WRITE);
     }
 
     /**
