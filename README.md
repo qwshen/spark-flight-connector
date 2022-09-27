@@ -129,7 +129,7 @@ spark.read
 ```
 
 #### - Pushing aggregation down
-Aggregations are pushed down when they are provided. Only the following aggregations are supported:
+Aggregations are pushed down when they are used. Only the following aggregations are supported:
 - max
 - min
 - count
