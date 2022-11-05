@@ -14,6 +14,7 @@ import org.apache.spark.sql.catalyst.util.DateTimeUtils;
 import org.apache.spark.sql.catalyst.util.IntervalUtils;
 import org.apache.spark.sql.types.*;
 import org.apache.spark.unsafe.types.UTF8String;
+import org.apache.arrow.vector.util.JsonStringHashMap;
 import scala.collection.JavaConverters;
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -23,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -1013,13 +1015,18 @@ public final class ArrowConversion implements Serializable {
     private static final convertFrom<List<?>, MapVector, FieldType.MapType, ArrayBasedMapData> _translateMap = (l, mv, mt) -> {
         java.util.List<Object> keys = new java.util.ArrayList<>();
         java.util.List<Object> values = new java.util.ArrayList<>();
-        ValueVector kv = mv.getChildrenFromFields().get(0);
-        ValueVector vv = mv.getChildrenFromFields().get(1);
-        l.forEach(e -> {
-            java.util.Map.Entry<?, ?> entry = (java.util.Map.Entry<?, ?>)e;
-            keys.add(ArrowConversion._translate.apply(mt.getKeyType(), entry.getKey(), kv));
-            values.add(ArrowConversion._translate.apply(mt.getValueType(), entry.getValue(), vv));
-        });
+        Function<ValueVector[], Boolean> probe = (vs) -> (vs.length == 2 && vs[0].getField().getName().equalsIgnoreCase("key") && vs[1].getField().getName().equalsIgnoreCase("value"));
+        Consumer<ValueVector[]> populate = (vs) -> {
+            if (probe.apply(vs)) {
+                l.forEach(e -> {
+                    JsonStringHashMap<?, ?> entry = (JsonStringHashMap<?, ?>) e;
+                    keys.add(ArrowConversion._translate.apply(mt.getKeyType(), entry.get("key"), vs[0]));
+                    values.add(ArrowConversion._translate.apply(mt.getValueType(), entry.get("value"), vs[1]));
+                });
+            }
+        };
+        ValueVector[] fields = mv.getChildrenFromFields().toArray(new ValueVector[0]);
+        populate.accept((fields.length == 1 && fields[0] instanceof StructVector) ? ((StructVector)fields[0]).getChildrenFromFields().toArray(new ValueVector[0]) : fields);
         return new ArrayBasedMapData(ArrayData.toArrayData(keys.toArray()), ArrayData.toArrayData(values.toArray()));
     };
     private static final convertFrom<List<?>, ListVector, FieldType.ListType, ArrayData> _translateList = (l, v, t) -> ArrayData.toArrayData(l.stream().map(e -> ArrowConversion._translate.apply(t.getChildType(), e, v.getDataVector())).toArray());
@@ -1029,11 +1036,11 @@ public final class ArrowConversion implements Serializable {
     private static final BiFunction<Integer, ZoneId, Long> _days_2_micros = (days, zone) -> DateTimeUtils.daysToMicros(days, ZoneId.systemDefault());
     private static final Function<Long, Long> _micros_2_epochNanos = (micros) -> {
         Instant t = DateTimeUtils.microsToLocalDateTime(micros).withYear(1970).withMonth(1).withDayOfMonth(1).atZone(ZoneId.systemDefault()).toInstant();
-        return (long)t.toEpochMilli() * 1000000L + (long)t.getNano();
+        return t.toEpochMilli() * 1000000L + (long)t.getNano();
     };
     private static final Function<String, Long> _timestr_2_nanos = (ts) -> {
         Instant t = LocalDateTime.of(LocalDate.of(1970, 1, 1), LocalTime.parse(ts)).atZone(ZoneId.systemDefault()).toInstant();
-        return (long)t.toEpochMilli() * 1000000L + (long)t.getNano();
+        return t.toEpochMilli() * 1000000L + (long)t.getNano();
     };
     private static final BiFunction<Object, Object, Object> _o1_else_o2 = (o1, o2) -> (o1 != null) ? o1 : o2;
 

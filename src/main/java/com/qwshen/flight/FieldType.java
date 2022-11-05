@@ -5,6 +5,8 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import org.apache.spark.sql.types.YearMonthIntervalType;
 import org.apache.spark.sql.types.DayTimeIntervalType;
@@ -233,9 +235,25 @@ public class FieldType implements Serializable {
                 return (at.getTypeID() == ArrowType.ArrowTypeID.Struct) ? new StructType(scType) : new UnionType(scType);
             case Map:
                 FieldType keyType = null, valueType = null;
-                if (children != null && children.size() > 1) {
-                    keyType = FieldType.fromArrow(children.get(0).getType(), children.get(0).getChildren());
-                    valueType = FieldType.fromArrow(children.get(1).getType(), children.get(1).getChildren());
+                if (children != null) {
+                    if (children.size() == 1) {
+                        FieldType mcType = FieldType.fromArrow(children.get(0).getType(), children.get(0).getChildren());
+                        if (mcType.getTypeID() == IDs.STRUCT)  {
+                            Map<String, FieldType> cldType = ((StructType)mcType).getChildrenType();
+                            String[] keys = cldType.keySet().toArray(new String[0]);
+                            if (keys.length == 2 && keys[0].equalsIgnoreCase("Key") && keys[1].equalsIgnoreCase("value")) {
+                                keyType = cldType.get("key");
+                                valueType = cldType.get("value");
+                            }
+                        }
+                    }
+                    else if (children.size() == 2) {
+                        keyType = FieldType.fromArrow(children.get(0).getType(), children.get(0).getChildren());
+                        valueType = FieldType.fromArrow(children.get(1).getType(), children.get(1).getChildren());
+                    }
+                }
+                if (keyType == null || valueType == null) {
+                    throw new RuntimeException("Invalid map-type.");
                 }
                 return new MapType(keyType, valueType);
             case List:

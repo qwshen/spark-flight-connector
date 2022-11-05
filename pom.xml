@@ -23,7 +23,7 @@
 
     <groupId>com.qwshen</groupId>
     <artifactId>spark-flight-connector_${spark.version}</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <packaging>jar</packaging>
 
     <build>

@@ -264,7 +264,7 @@ list | array
 struct | struct
 map | map
 
-Note: for Dremio Flight, the Map type is converted to Struct. The connector detects the pattern and converts back to Map when reading data, and adapts to Struct when writing data (with v22.0.0 or above for write only).
+Note: for Dremio Flight before v23.0.0, the Map type is converted to Struct. The connector detects the pattern and converts back to Map when reading data, and adapts to Struct when writing data (with v22.0.0 or above for write only).
 
 #### - Spark >> Arrow
 

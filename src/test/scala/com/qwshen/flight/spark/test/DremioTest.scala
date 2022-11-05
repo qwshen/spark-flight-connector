@@ -7,7 +7,7 @@ import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.scalatest.{BeforeAndAfterEach, FunSuite}
 
 class DremioTest extends FunSuite with BeforeAndAfterEach {
-  private val dremioHost = "192.168.0.22"
+  private val dremioHost = "192.168.0.19"
   private val dremioPort = "32010"
   private val dremioTlsEnabled = false
   private val user = "test"
@@ -104,11 +104,46 @@ class DremioTest extends FunSuite with BeforeAndAfterEach {
     val query = """
         |select
         |  'James' as name,
+        |  convert_from('["Newark", "NY"]', 'json') as cities,
         |  convert_from('{"city": "Newark", "state": "NY"}', 'json') as address,
         |  convert_from('{"map": [{"Key": "hair", "value": "block"}, {"key": "eye", "value": "brown"}]}', 'json') as prop_1,
         |  convert_from('{"map": [{"key": "height", "value": "5.9"}]}', 'json') as prop_2
         |""".stripMargin
     val run: SparkSession => DataFrame = this.load(Map("table" -> query, "column.quote" -> "\""))
+    val df = this.execute(run)
+    df.printSchema()
+    df.count()
+    df.show()
+  }
+
+  test("Query a table with list, struct & map types") {
+    /*
+      Create a dataframe in spark-shell with the following code, then save the dataframe in parquet files.
+      Create a data source pointing the parquet files in Dremio
+
+      val arrayStructureData = Seq(
+        Row("James",List(Row("Newark","NY"),
+        Row("Brooklyn","NY")),Map("hair"->"black","eye"->"brown"), Map("height"->"5.9")),
+        Row("Michael",List(Row("SanJose","CA"),Row("Sandiago","CA")), Map("hair"->"brown","eye"->"black"),Map("height"->"6")),
+        Row("Robert",List(Row("LasVegas","NV")), Map("hair"->"red","eye"->"gray"),Map("height"->"6.3")),
+        Row("Maria",null,Map("hair"->"blond","eye"->"red"), Map("height"->"5.6")),
+        Row("Jen",List(Row("LAX","CA"),Row("Orange","CA")), Map("white"->"black","eye"->"black"),Map("height"->"5.2"))
+      )
+
+      val mapType  = DataTypes.createMapType(StringType,StringType)
+      val arrayStructureSchema = new StructType()
+        .add("name",StringType)
+        .add("addresses", ArrayType(new StructType()
+        .add("city",StringType)
+        .add("state",StringType)))
+        .add("properties", mapType)
+        .add("secondProp", MapType(StringType,StringType))
+
+        val mapTypeDF = spark.createDataFrame(spark.sparkContext.parallelize(arrayStructureData),arrayStructureSchema)
+        mapTypeDF.printSchema()
+        mapTypeDF.show()
+     */
+    val run: SparkSession => DataFrame = this.load(Map("table" -> "ESG.\"map\"", "column.quote" -> "\""))
     val df = this.execute(run)
     df.printSchema()
     df.count()
