@@ -22,7 +22,7 @@ In order to connect to an arrow-flight endpoint, the following properties are ma
     ```roomsql
      orders o inner join customers c on o.customer_id = c.id
     ```
-  **Note: the connector doesn't support legacy flight authentication mode (flight.auth.mode = legacy.arrow.flight.auth).**
+  *Note: the connector doesn't support legacy flight authentication mode (flight.auth.mode = legacy.arrow.flight.auth).*
 
 The following properties are optional:
 
