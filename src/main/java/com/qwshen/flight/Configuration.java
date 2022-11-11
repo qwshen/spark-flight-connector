@@ -29,9 +29,15 @@ public class Configuration implements Serializable {
     private String _trustStoreJks;
     private String _trustStorePass;
 
-    //the user and password with which to connect to flight service
+    //the user and password/access-token with which to connect to flight service
     private final String _user;
     private final String _password;
+    private final String _accessToken;
+
+    //information to manage work-loads
+    private String _defaultSchema = "";
+    private String _routingTag = "";
+    private String _routingQueue = "";
 
     //the binary content of the certificate
     private byte[] _certBytes;
@@ -42,9 +48,10 @@ public class Configuration implements Serializable {
      * @param port - the port number of the remote flight service
      * @param user - the user account for connecting to remote flight service
      * @param password - the password of the user account
+     * @param accessToken - the pat or auth2 token
      */
-    public Configuration(String host, int port, String user, String password) {
-        this(host, port, false, false, user, password);
+    public Configuration(String host, int port, String user, String password, String accessToken) {
+        this(host, port, false, false, user, password, accessToken);
     }
 
     /**
@@ -55,8 +62,9 @@ public class Configuration implements Serializable {
      * @param crtVerify -whether to verify the certificate if remote flight service is tls-enabled.
      * @param user - the user account for connecting to remote flight service
      * @param password - the password of the user account
+     * @param accessToken - the pat or auth2 token
      */
-    public Configuration(String host, int port, Boolean tlsEnabled, Boolean crtVerify, String user, String password) {
+    public Configuration(String host, int port, Boolean tlsEnabled, Boolean crtVerify, String user, String password, String accessToken) {
         this._fsHost = host;
         this._fsPort = port;
         this._tlsEnabled = tlsEnabled;
@@ -68,6 +76,7 @@ public class Configuration implements Serializable {
 
         this._user = user;
         this._password = password;
+        this._accessToken = accessToken;
     }
 
     /**
@@ -78,9 +87,10 @@ public class Configuration implements Serializable {
      * @param truststorePass - the pass code of the trust store
      * @param user - the user account for connecting to remote flight service
      * @param password - the password of the user account
+     * @param accessToken - the pat or auth2 token
      */
-    public Configuration(String host, int port, String trustStoreJks, String truststorePass, String user, String password) {
-        this(host, port, true, true, user, password);
+    public Configuration(String host, int port, String trustStoreJks, String truststorePass, String user, String password, String accessToken) {
+        this(host, port, true, true, user, password, accessToken);
 
         this._trustStoreJks = trustStoreJks;
         this._trustStorePass = truststorePass;
@@ -159,6 +169,13 @@ public class Configuration implements Serializable {
     public String getPassword() {
         return this._password;
     }
+    /**
+     * Get the access-token of the user account
+     * @return - the access-token of the user account
+     */
+    public String getAccessToken() {
+        return this._accessToken;
+    }
 
     /**
      * Retrieve the connection string for connecting to the remote flight service
@@ -198,5 +215,53 @@ public class Configuration implements Serializable {
             pemWriter.flush();
             return writer.toString().getBytes(StandardCharsets.UTF_8);
         }
+    }
+
+    /**
+     * Get the path of the default schema
+     * @return - Default schema path to the dataset that the user wants to query.
+     */
+    public String getDefaultSchema() {
+        return _defaultSchema;
+    }
+
+    /**
+     * Set the path of default schema
+     * @param defaultSchema - Default schema path to the dataset that the user wants to query.
+     */
+    public void setDefaultSchema(String defaultSchema) {
+        this._defaultSchema = defaultSchema;
+    }
+
+    /**
+     * Get the routing-tag
+     * @return - Tag name associated with all queries executed within a Flight session. Used only during authentication.
+     */
+    public String getRoutingTag() {
+        return this._routingTag;
+    }
+
+    /**
+     * Set the rouging-tag
+     * @param routingTag - Tag name associated with all queries executed within a Flight session. Used only during authentication.
+     */
+    public void setRoutingTag(String routingTag) {
+        this._routingTag = routingTag;
+    }
+
+    /**
+     * Get the routing-queue
+     * @return - Name of the workload management queue. Used only during authentication.
+     */
+    public String getRoutingQueue() {
+        return this._routingQueue;
+    }
+
+    /**
+     * Set the routing-queue
+     * @param routingQueue - Name of the workload management queue. Used only during authentication.
+     */
+    public void setRoutingQueue(String routingQueue) {
+        this._routingQueue = routingQueue;
     }
 }

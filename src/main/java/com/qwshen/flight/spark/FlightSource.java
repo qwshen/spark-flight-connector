@@ -23,11 +23,17 @@ public class FlightSource implements TableProvider, DataSourceRegister {
     //the option keys for account
     private static final String USER = "user";
     private static final String PASSWORD = "password";
+    private static final String ACCESS_TOKEN = "accessToken";
 
     //the option keys for table
     private static final String TABLE = "table";
     //the quote for field in case a field containing irregular characters, such as -
     private static final String COLUMN_QUOTE = "column.quote";
+
+    //Managing Workloads
+    public static final String KEY_DEFAULT_SCHEMA = "default.schema";
+    public static final String KEY_ROUTING_TAG = "routing.tag";
+    public static final String KEY_ROUTING_QUEUE = "routing.queue";
 
     //the service configuration
     private Configuration _configuration = null;
@@ -53,9 +59,10 @@ public class FlightSource implements TableProvider, DataSourceRegister {
         //account
         String user = options.getOrDefault(FlightSource.USER, "");
         String password = options.getOrDefault(FlightSource.PASSWORD, "");
+        String accessToken = options.getOrDefault(FlightSource.ACCESS_TOKEN, "");
         //validation - host, user & password cannot be empty
-        if (host.isEmpty() || user.isEmpty() || password.isEmpty()) {
-            throw new RuntimeException("The host, user and password are all mandatory.");
+        if (host.isEmpty() || user.isEmpty() || (password.isEmpty() && accessToken.isEmpty())) {
+            throw new RuntimeException("The host, user and (password or access-token) are all mandatory.");
         }
         //tls configuration
         boolean tlsEnabled = Boolean.parseBoolean(options.getOrDefault(FlightSource.TLS_ENABLED, "false"));
@@ -64,7 +71,12 @@ public class FlightSource implements TableProvider, DataSourceRegister {
         String truststorePass = options.getOrDefault(FlightSource.TLS_TRUSTSTORE_PASS, "");
         //set up the configuration object
         this._configuration = (truststoreJks != null && !truststoreJks.isEmpty())
-            ? new Configuration(host, port, truststoreJks, truststorePass, user, password) : new Configuration(host, port, tlsEnabled, tlsEnabled && tlsVerify, user, password);
+            ? new Configuration(host, port, truststoreJks, truststorePass, user, password, accessToken) : new Configuration(host, port, tlsEnabled, tlsEnabled && tlsVerify, user, password, accessToken);
+
+        //set the schema path, routing tag & queue if any to manage work-loads
+        this._configuration.setDefaultSchema(options.getOrDefault(FlightSource.KEY_DEFAULT_SCHEMA, ""));
+        this._configuration.setRoutingTag(options.getOrDefault(FlightSource.KEY_ROUTING_TAG, ""));
+        this._configuration.setRoutingQueue(options.getOrDefault(FlightSource.KEY_ROUTING_QUEUE, ""));
 
         //the table name
         String tableName = options.getOrDefault(FlightSource.TABLE, "");

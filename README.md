@@ -12,7 +12,7 @@ In order to connect to an arrow-flight endpoint, the following properties are ma
 - `host`: the full host-name or ip of an arrow-flight server;
 - `port`: the port number;
 - `user`: the user account for connecting to and reading/writing data from/to the arrow-flight endpoint; 
-- `password`: the password of the user account;
+- `password`or `accessToken`: the password or pat/auth2 token of the user account. One of them must be provided; the password takes precedence if both provided.
 - `table`: the name of a table from/to which the connector reads/writes data. The table can be a physical data table, or any view. It can also be a select sql-statement or tables-joining statement. For example:
   - Select statement:
     ```roomsql
@@ -22,6 +22,7 @@ In order to connect to an arrow-flight endpoint, the following properties are ma
     ```roomsql
      orders o inner join customers c on o.customer_id = c.id
     ```
+  **Note: the connector doesn't support legacy flight authentication mode (flight.auth.mode = legacy.arrow.flight.auth).**
 
 The following properties are optional:
 
@@ -30,9 +31,12 @@ The following properties are optional:
 - `tls.truststore.jksFile`: the trust-store file in jks format;
 - `tls.truststore.pass`: the pass code of the trust-store;
 - `column.quote`: the character to quote the name of fields if any special character is used, such as the following sql statement:
-```roomsql
-  select id, "departure-time", "arrival-time" from flights where "flight-no" = 'ABC-21';
-```
+  ```roomsql
+    select id, "departure-time", "arrival-time" from flights where "flight-no" = 'ABC-21';
+  ```
+- `default.schema`: default schema path to the dataset that the user wants to query.
+- `routing.tag`: tag name associated with all queries executed within a Flight session. Used only during authentication.
+- `routing.queue`: name of the workload management queue. Used only during authentication.
 
 The connector supports optimized reads with filters, required columns and aggregation pushing-down, and parallel reads when partitioning is enabled.
 

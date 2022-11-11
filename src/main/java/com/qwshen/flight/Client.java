@@ -2,6 +2,7 @@ package com.qwshen.flight;
 
 import org.apache.arrow.flight.*;
 import org.apache.arrow.flight.auth2.BasicAuthCredentialWriter;
+import org.apache.arrow.flight.auth2.BearerCredentialWriter;
 import org.apache.arrow.flight.auth2.ClientBearerHeaderHandler;
 import org.apache.arrow.flight.auth2.ClientIncomingAuthHeaderMiddleware;
 import org.apache.arrow.flight.grpc.CredentialCallOption;
@@ -9,24 +10,12 @@ import org.apache.arrow.flight.sql.FlightSqlClient;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.*;
-import org.apache.arrow.vector.complex.DenseUnionVector;
-import org.apache.arrow.vector.ipc.ReadChannel;
-import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.arrow.vector.util.Text;
 import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.net.URI;
-import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import static java.util.Objects.isNull;
 
 /**
  * Describes the data-structure of Client for communicating with remote flight service
@@ -178,7 +167,20 @@ public final class Client implements AutoCloseable {
         String cs = config.getConnectionString();
         if (!Client._clients.containsKey(cs)) {
             final FlightClient client = Client.create(config);
-            Client._clients.put(cs, new Client(client, authenticate(client, config.getUser(), config.getPassword())));
+
+            final CallHeaders callHeaders = new FlightCallHeaders();
+            if (config.getDefaultSchema() != null && config.getDefaultSchema().length() > 0) {
+                callHeaders.insert("SCHEMA", config.getDefaultSchema());
+            }
+            if (config.getRoutingTag() != null && config.getRoutingTag().length() > 0) {
+                callHeaders.insert("ROUTING_TAG", config.getRoutingTag());
+            }
+            if (config.getRoutingQueue() != null && config.getRoutingQueue().length() > 0) {
+                callHeaders.insert("ROUTING_QUEUE", config.getRoutingQueue());
+            }
+            final HeaderCallOption clientProperties = (callHeaders.keys().size() > 0) ? new HeaderCallOption(callHeaders) : null;
+
+            Client._clients.put(cs, new Client(client, authenticate(client, config.getUser(), config.getPassword(), config.getAccessToken(), clientProperties)));
         }
         return Client._clients.get(cs);
     }
@@ -195,13 +197,16 @@ public final class Client implements AutoCloseable {
         } else {
             builder.location(Location.forGrpcInsecure(config.getFlightHost(), config.getFlightPort()));
         }
-        return builder.intercept(Client._factory).build();
+        return (config.getPassword() != null && config.getPassword().length() > 0) ? builder.intercept(Client._factory).build() : builder.build();
     }
     //Authenticate with user & password to obtain the credential token-ticket
-    private static CredentialCallOption authenticate(FlightClient client, String user, String password) {
+    private static CredentialCallOption authenticate(FlightClient client, String user, String password, String accessToken, HeaderCallOption clientProperties) {
         final java.util.List<CallOption> callOptions = new java.util.ArrayList<>();
-        callOptions.add(new CredentialCallOption(new BasicAuthCredentialWriter(user, password)));
+        callOptions.add(clientProperties);
+
+        boolean usePassword = (password != null && password.length() > 0);
+        callOptions.add(new CredentialCallOption(usePassword ? new BasicAuthCredentialWriter(user, password) : new BearerCredentialWriter(accessToken)));
         client.handshake(callOptions.toArray(new CallOption[0]));
-        return Client._factory.getCredentialCallOption();
+        return usePassword ? Client._factory.getCredentialCallOption() : (CredentialCallOption)callOptions.get(0);
     }
 }

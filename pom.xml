@@ -8,7 +8,7 @@
         <java.version>1.8</java.version>
         <scala.compact.version>2.12</scala.compact.version>
         <scala.version>2.12.15</scala.version>
-        <spark.version>3.2.1</spark.version>
+        <spark.version>3.2.2</spark.version>
         <arrow.version>8.0.0</arrow.version>
         <guava.version>30.1.1-jre</guava.version>
         <grpc.version>1.41.0</grpc.version>
