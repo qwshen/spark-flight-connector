@@ -9,6 +9,7 @@ import org.apache.arrow.flight.grpc.CredentialCallOption;
 import org.apache.arrow.flight.sql.FlightSqlClient;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.LoggerFactory;
@@ -21,8 +22,6 @@ import java.util.Arrays;
  * Describes the data-structure of Client for communicating with remote flight service
  */
 public final class Client implements AutoCloseable {
-    //the buffer
-    private static final BufferAllocator _allocator = new RootAllocator(Integer.MAX_VALUE);
     //the factory
     private static final ClientIncomingAuthHeaderMiddleware.Factory _factory = new ClientIncomingAuthHeaderMiddleware.Factory(new ClientBearerHeaderHandler());
     //the existing objects of client
@@ -35,15 +34,24 @@ public final class Client implements AutoCloseable {
     //the token for calls
     private final CredentialCallOption _bearerToken;
 
+    //the buffer
+    private final BufferAllocator _allocator;
+    //the connection string to identify the client
+    private final String _connectionString;
+
     /**
      * Construct a Client object
      * @param client - the client object of the flight service
      * @param bearerToken - the credential token
+     * @param connectionString - the connection string to identify the client
      */
-    private Client(FlightClient client, CredentialCallOption bearerToken) {
+    private Client(FlightClient client, CredentialCallOption bearerToken, String connectionString, BufferAllocator allocator) {
         this._client = client;
         this._sqlClient = new FlightSqlClient(this._client);
         this._bearerToken = bearerToken;
+
+        this._connectionString = connectionString;
+        this._allocator = allocator;
     }
 
     /**
@@ -152,8 +160,14 @@ public final class Client implements AutoCloseable {
     @Override
     public void close() {
         try {
+            synchronized (Client._clients) {
+                Client._clients.remove(this._connectionString);
+            }
             this._client.close();
-        } catch (InterruptedException ex) {
+
+            this._allocator.getChildAllocators().forEach(BufferAllocator::close);
+            AutoCloseables.close(this._allocator);
+        } catch (Exception ex) {
             LoggerFactory.getLogger(this.getClass()).warn(ex.getMessage() + Arrays.toString(ex.getStackTrace()));
         }
     }
@@ -166,7 +180,8 @@ public final class Client implements AutoCloseable {
     public static synchronized Client getOrCreate(Configuration config) {
         String cs = config.getConnectionString();
         if (!Client._clients.containsKey(cs)) {
-            final FlightClient client = Client.create(config);
+            final BufferAllocator allocator = new RootAllocator(Integer.MAX_VALUE);
+            final FlightClient client = Client.create(config, allocator);
 
             final CallHeaders callHeaders = new FlightCallHeaders();
             if (config.getDefaultSchema() != null && config.getDefaultSchema().length() > 0) {
@@ -180,14 +195,14 @@ public final class Client implements AutoCloseable {
             }
             final HeaderCallOption clientProperties = (callHeaders.keys().size() > 0) ? new HeaderCallOption(callHeaders) : null;
 
-            Client._clients.put(cs, new Client(client, authenticate(client, config.getUser(), config.getPassword(), config.getAccessToken(), clientProperties)));
+            Client._clients.put(cs, new Client(client, authenticate(client, config.getUser(), config.getPassword(), config.getAccessToken(), clientProperties), cs, allocator));
         }
         return Client._clients.get(cs);
     }
 
     //Create a client object with the service configuration
-    private static FlightClient create(Configuration config) {
-        FlightClient.Builder builder = FlightClient.builder().allocator(Client._allocator);
+    private static FlightClient create(Configuration config, BufferAllocator allocator) {
+        FlightClient.Builder builder = FlightClient.builder().allocator(allocator);
         if (config.getTlsEnabled()) {
             if (config.getTruststoreJks() == null || config.getTruststoreJks().isEmpty()) {
                 builder.location(Location.forGrpcTls(config.getFlightHost(), config.getFlightPort())).useTls().verifyServer(config.verifyServer());

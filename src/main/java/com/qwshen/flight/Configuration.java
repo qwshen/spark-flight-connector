@@ -182,7 +182,8 @@ public class Configuration implements Serializable {
      * @return - the connection string
      */
     public String getConnectionString() {
-        return String.format("%s://%s:%s@%s:%d", this._tlsEnabled ? "https:" : "http", this._user, this._password, this._fsHost, this._fsPort);
+        String secret = (this._password != null && this._password.length() > 0) ? this._password : this._accessToken;
+        return String.format("%s://%s:%s@%s:%d", this._tlsEnabled ? "https:" : "http", this._user, secret, this._fsHost, this._fsPort);
     }
 
     private static byte[] getCertificateBytes(String keyStorePath, String keyStorePassword) {

@@ -1,15 +1,11 @@
 package com.qwshen.flight;
 
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.parquet.Strings;
 import org.apache.spark.sql.sources.*;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.LoggerFactory;
-import scala.Array;
-import scala.collection.mutable.HashTable;
-
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Hashtable;
