@@ -4,6 +4,7 @@ import com.qwshen.flight.Configuration;
 import com.qwshen.flight.PartitionBehavior;
 import com.qwshen.flight.PushAggregation;
 import com.qwshen.flight.Table;
+import org.apache.spark.sql.connector.expressions.Expression;
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation;
 import org.apache.spark.sql.connector.expressions.aggregate.*;
 import org.apache.spark.sql.connector.read.*;
@@ -53,6 +54,7 @@ public final class FlightScanBuilder implements ScanBuilder, SupportsPushDownFil
     public boolean pushAggregation(Aggregation aggregation) {
         Function<String, String> quote = (s) -> String.format("%s%s%s", this._table.getColumnQuote(), s, this._table.getColumnQuote());
         Function<String[], String> mks = (ss) -> String.join(",", Arrays.stream(ss).map(quote).toArray(String[]::new));
+        Function<Expression, String> e2s = (e) -> String.join(",", Arrays.stream(e.references()).map(r -> mks.apply(r.fieldNames())).toArray(String[]::new));
 
         List<String> pdAggregateColumns = new ArrayList<>();
         boolean push = true;
@@ -61,23 +63,23 @@ public final class FlightScanBuilder implements ScanBuilder, SupportsPushDownFil
                 pdAggregateColumns.add(agg.toString().toLowerCase());
             } else if (agg instanceof Count) {
                 Count c = (Count)agg;
-                pdAggregateColumns.add(c.isDistinct() ? String.format("count(distinct(%s))", mks.apply(c.column().fieldNames())) : String.format("count(%s)", mks.apply(c.column().fieldNames())));
+                pdAggregateColumns.add(c.isDistinct() ? String.format("count(distinct(%s))", e2s.apply(c.column())) : String.format("count(%s)", e2s.apply(c.column())));
             } else if (agg instanceof Min) {
                 Min m = (Min)agg;
-                pdAggregateColumns.add(String.format("min(%s)", mks.apply(m.column().fieldNames())));
+                pdAggregateColumns.add(String.format("min(%s)", e2s.apply(m.column())));
             } else if (agg instanceof Max) {
                 Max m = (Max)agg;
-                pdAggregateColumns.add(String.format("max(%s)", mks.apply(m.column().fieldNames())));
+                pdAggregateColumns.add(String.format("max(%s)", e2s.apply(m.column())));
             } else if (agg instanceof Sum) {
                 Sum s = (Sum)agg;
-                pdAggregateColumns.add(s.isDistinct() ? String.format("sum(distinct(%s))", mks.apply(s.column().fieldNames())) : String.format("sum(%s)", mks.apply(s.column().fieldNames())));
+                pdAggregateColumns.add(s.isDistinct() ? String.format("sum(distinct(%s))", e2s.apply(s.column())) : String.format("sum(%s)", e2s.apply(s.column())));
             } else {
                 push = false;
                 break;
             }
-        };
+        }
         if (push) {
-            String[] pdGroupByColumns = Arrays.stream(aggregation.groupByColumns()).flatMap(gbc -> Arrays.stream(gbc.fieldNames()).map(quote)).toArray(String[]::new);
+            String[] pdGroupByColumns = Arrays.stream(aggregation.groupByExpressions()).flatMap(e -> Arrays.stream(e.references()).flatMap(r -> Arrays.stream(r.fieldNames()).map(quote))).toArray(String[]::new);
             pdAggregateColumns.addAll(0, Arrays.asList(pdGroupByColumns));
             this._pdAggregation = pdGroupByColumns.length > 0 ? new PushAggregation(pdAggregateColumns.toArray(new String[0]), pdGroupByColumns) : new PushAggregation(pdAggregateColumns.toArray(new String[0]));
         } else {
@@ -135,7 +137,7 @@ public final class FlightScanBuilder implements ScanBuilder, SupportsPushDownFil
 
     /**
      * To build a flight-scan
-     * @return - A fligh scan
+     * @return - A flight scan
      */
     @Override
     public Scan build() {

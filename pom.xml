@@ -8,11 +8,12 @@
         <java.version>1.8</java.version>
         <scala.compact.version>2.12</scala.compact.version>
         <scala.version>2.12.15</scala.version>
-        <spark.version>3.2.2</spark.version>
+        <spark.version>3.3.1</spark.version>
         <arrow.version>8.0.0</arrow.version>
         <guava.version>30.1.1-jre</guava.version>
         <grpc.version>1.41.0</grpc.version>
         <netty.version>4.1.68.Final</netty.version>
+        <com.fasterxml.jackson>2.13.4</com.fasterxml.jackson>
 
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
@@ -252,12 +253,12 @@
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-scala_${scala.compact.version}</artifactId>
-            <version>2.12.3</version>
+            <version>${com.fasterxml.jackson}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
-            <version>2.13.2</version>
+            <version>${com.fasterxml.jackson}</version>
         </dependency>
         <dependency>
             <groupId>joda-time</groupId>
