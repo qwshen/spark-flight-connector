@@ -76,7 +76,7 @@ class DremioTest extends FunSuite with BeforeAndAfterEach {
         |  cast(3423.23 as float) as float_amount,
         |  cast(2342345.13 as double) as double_amount,
         |  cast(32423423.31 as decimal) as decimal_amount
-        |from "azure-wstorage".input.events e inner join "azure-wstorage".input.users u on e.user_id = u.user_id
+        |from "@test".events e inner join "@test".users u on e.user_id = u.user_id
       |""".stripMargin
     val run: SparkSession => DataFrame = this.load(Map("table" -> query, "column.quote" -> "\""))
     val df = this.execute(run)

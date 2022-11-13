@@ -75,7 +75,7 @@ public final class FlightScanBuilder implements ScanBuilder, SupportsPushDownFil
                 push = false;
                 break;
             }
-        };
+        }
         if (push) {
             String[] pdGroupByColumns = Arrays.stream(aggregation.groupByColumns()).flatMap(gbc -> Arrays.stream(gbc.fieldNames()).map(quote)).toArray(String[]::new);
             pdAggregateColumns.addAll(0, Arrays.asList(pdGroupByColumns));
@@ -135,7 +135,7 @@ public final class FlightScanBuilder implements ScanBuilder, SupportsPushDownFil
 
     /**
      * To build a flight-scan
-     * @return - A fligh scan
+     * @return - A flight scan
      */
     @Override
     public Scan build() {
