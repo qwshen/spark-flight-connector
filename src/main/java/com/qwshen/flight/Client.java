@@ -195,7 +195,7 @@ public final class Client implements AutoCloseable {
             }
             final HeaderCallOption clientProperties = (callHeaders.keys().size() > 0) ? new HeaderCallOption(callHeaders) : null;
 
-            Client._clients.put(cs, new Client(client, authenticate(client, config.getUser(), config.getPassword(), config.getAccessToken(), clientProperties), cs, allocator));
+            Client._clients.put(cs, new Client(client, authenticate(client, config.getUser(), config.getPassword(), config.getBearerToken(), clientProperties), cs, allocator));
         }
         return Client._clients.get(cs);
     }
@@ -215,12 +215,12 @@ public final class Client implements AutoCloseable {
         return (config.getPassword() != null && config.getPassword().length() > 0) ? builder.intercept(Client._factory).build() : builder.build();
     }
     //Authenticate with user & password to obtain the credential token-ticket
-    private static CredentialCallOption authenticate(FlightClient client, String user, String password, String accessToken, HeaderCallOption clientProperties) {
+    private static CredentialCallOption authenticate(FlightClient client, String user, String password, String bearerToken, HeaderCallOption clientProperties) {
         final java.util.List<CallOption> callOptions = new java.util.ArrayList<>();
         callOptions.add(clientProperties);
 
         boolean usePassword = (password != null && password.length() > 0);
-        callOptions.add(new CredentialCallOption(usePassword ? new BasicAuthCredentialWriter(user, password) : new BearerCredentialWriter(accessToken)));
+        callOptions.add(new CredentialCallOption(usePassword ? new BasicAuthCredentialWriter(user, password) : new BearerCredentialWriter(bearerToken)));
         client.handshake(callOptions.toArray(new CallOption[0]));
         return usePassword ? Client._factory.getCredentialCallOption() : (CredentialCallOption)callOptions.get(0);
     }

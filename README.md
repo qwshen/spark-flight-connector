@@ -12,7 +12,7 @@ In order to connect to an arrow-flight endpoint, the following properties are ma
 - `host`: the full host-name or ip of an arrow-flight server;
 - `port`: the port number;
 - `user`: the user account for connecting to and reading/writing data from/to the arrow-flight endpoint; 
-- `password`or `accessToken`: the password or pat/auth2 token of the user account. One of them must be provided; the password takes precedence if both provided.
+- `password` or `bearerToken`: the password/pat or auth2 token of the user account. One of them must be provided; the password takes precedence if both provided.
 - `table`: the name of a table from/to which the connector reads/writes data. The table can be a physical data table, or any view. It can also be a select sql-statement or tables-joining statement. For example:
   - Select statement:
     ```roomsql
