@@ -32,7 +32,7 @@ public class Configuration implements Serializable {
     //the user and password/access-token with which to connect to flight service
     private final String _user;
     private final String _password;
-    private final String _accessToken;
+    private final String _bearerToken;
 
     //information to manage work-loads
     private String _defaultSchema = "";
@@ -48,10 +48,10 @@ public class Configuration implements Serializable {
      * @param port - the port number of the remote flight service
      * @param user - the user account for connecting to remote flight service
      * @param password - the password of the user account
-     * @param accessToken - the pat or auth2 token
+     * @param bearerToken - the pat or auth2 token
      */
-    public Configuration(String host, int port, String user, String password, String accessToken) {
-        this(host, port, false, false, user, password, accessToken);
+    public Configuration(String host, int port, String user, String password, String bearerToken) {
+        this(host, port, false, false, user, password, bearerToken);
     }
 
     /**
@@ -62,9 +62,9 @@ public class Configuration implements Serializable {
      * @param crtVerify -whether to verify the certificate if remote flight service is tls-enabled.
      * @param user - the user account for connecting to remote flight service
      * @param password - the password of the user account
-     * @param accessToken - the pat or auth2 token
+     * @param bearerToken - the pat or auth2 token
      */
-    public Configuration(String host, int port, Boolean tlsEnabled, Boolean crtVerify, String user, String password, String accessToken) {
+    public Configuration(String host, int port, Boolean tlsEnabled, Boolean crtVerify, String user, String password, String bearerToken) {
         this._fsHost = host;
         this._fsPort = port;
         this._tlsEnabled = tlsEnabled;
@@ -76,7 +76,7 @@ public class Configuration implements Serializable {
 
         this._user = user;
         this._password = password;
-        this._accessToken = accessToken;
+        this._bearerToken = bearerToken;
     }
 
     /**
@@ -87,10 +87,10 @@ public class Configuration implements Serializable {
      * @param truststorePass - the pass code of the trust store
      * @param user - the user account for connecting to remote flight service
      * @param password - the password of the user account
-     * @param accessToken - the pat or auth2 token
+     * @param bearerToken - the pat or auth2 token
      */
-    public Configuration(String host, int port, String trustStoreJks, String truststorePass, String user, String password, String accessToken) {
-        this(host, port, true, true, user, password, accessToken);
+    public Configuration(String host, int port, String trustStoreJks, String truststorePass, String user, String password, String bearerToken) {
+        this(host, port, true, true, user, password, bearerToken);
 
         this._trustStoreJks = trustStoreJks;
         this._trustStorePass = truststorePass;
@@ -173,8 +173,8 @@ public class Configuration implements Serializable {
      * Get the access-token of the user account
      * @return - the access-token of the user account
      */
-    public String getAccessToken() {
-        return this._accessToken;
+    public String getBearerToken() {
+        return this._bearerToken;
     }
 
     /**
@@ -182,7 +182,7 @@ public class Configuration implements Serializable {
      * @return - the connection string
      */
     public String getConnectionString() {
-        String secret = (this._password != null && this._password.length() > 0) ? this._password : this._accessToken;
+        String secret = (this._password != null && this._password.length() > 0) ? this._password : this._bearerToken;
         return String.format("%s://%s:%s@%s:%d", this._tlsEnabled ? "https:" : "http", this._user, secret, this._fsHost, this._fsPort);
     }
 

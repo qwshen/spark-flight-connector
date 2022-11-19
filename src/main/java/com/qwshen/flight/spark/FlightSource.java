@@ -23,7 +23,7 @@ public class FlightSource implements TableProvider, DataSourceRegister {
     //the option keys for account
     private static final String USER = "user";
     private static final String PASSWORD = "password";
-    private static final String ACCESS_TOKEN = "accessToken";
+    private static final String BEARER_TOKEN = "bearerToken";
 
     //the option keys for table
     private static final String TABLE = "table";
@@ -59,9 +59,9 @@ public class FlightSource implements TableProvider, DataSourceRegister {
         //account
         String user = options.getOrDefault(FlightSource.USER, "");
         String password = options.getOrDefault(FlightSource.PASSWORD, "");
-        String accessToken = options.getOrDefault(FlightSource.ACCESS_TOKEN, "");
+        String bearerToken = options.getOrDefault(FlightSource.BEARER_TOKEN, "");
         //validation - host, user & password cannot be empty
-        if (host.isEmpty() || user.isEmpty() || (password.isEmpty() && accessToken.isEmpty())) {
+        if (host.isEmpty() || user.isEmpty() || (password.isEmpty() && bearerToken.isEmpty())) {
             throw new RuntimeException("The host, user and (password or access-token) are all mandatory.");
         }
         //tls configuration
@@ -71,7 +71,7 @@ public class FlightSource implements TableProvider, DataSourceRegister {
         String truststorePass = options.getOrDefault(FlightSource.TLS_TRUSTSTORE_PASS, "");
         //set up the configuration object
         this._configuration = (truststoreJks != null && !truststoreJks.isEmpty())
-            ? new Configuration(host, port, truststoreJks, truststorePass, user, password, accessToken) : new Configuration(host, port, tlsEnabled, tlsEnabled && tlsVerify, user, password, accessToken);
+            ? new Configuration(host, port, truststoreJks, truststorePass, user, password, bearerToken) : new Configuration(host, port, tlsEnabled, tlsEnabled && tlsVerify, user, password, bearerToken);
 
         //set the schema path, routing tag & queue if any to manage work-loads
         this._configuration.setDefaultSchema(options.getOrDefault(FlightSource.KEY_DEFAULT_SCHEMA, ""));
