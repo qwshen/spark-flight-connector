@@ -3,7 +3,7 @@ package com.qwshen.flight.spark;
 import com.qwshen.flight.*;
 import com.qwshen.flight.spark.read.FlightScanBuilder;
 import com.qwshen.flight.spark.write.FlightWriteBuilder;
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.spark.sql.connector.catalog.SupportsRead;
 import org.apache.spark.sql.connector.catalog.SupportsWrite;
 import org.apache.spark.sql.connector.catalog.TableCapability;
@@ -144,14 +144,14 @@ public class FlightTable implements org.apache.spark.sql.connector.catalog.Table
             options.getOrDefault(FlightTable.WRITE_PROTOCOL, "literal-sql").equalsIgnoreCase("prepared-sql") ? WriteProtocol.PREPARED_SQL : WriteProtocol.LITERAL_SQL,
             //by default, the batch-size is 10,240.
             Integer.parseInt(options.getOrDefault(FlightTable.BATCH_SIZE, "1024")),
-            (String[])ArrayUtils.addAll(
-                //filter out any merge.ByColumns for only merge.ByColumn
-                options.keySet().stream()
-                        .filter(k -> !k.equalsIgnoreCase(FlightTable.MERGE_BY_COLUMNS) && k.toLowerCase().startsWith(FlightTable.MERGE_BY_COLUMN.toLowerCase()))
-                    .map(k -> options.getOrDefault(k, "")).filter(p -> !p.isEmpty()).toArray(String[]::new),
-                //combine with merge.ByColumns
-                options.containsKey(FlightTable.MERGE_BY_COLUMNS) ? options.get(FlightTable.MERGE_BY_COLUMNS).split("[;|,]") : new String[0]
-            ),
+                ArrayUtils.addAll(
+                    //filter out any merge.ByColumns for only merge.ByColumn
+                    options.keySet().stream()
+                            .filter(k -> !k.equalsIgnoreCase(FlightTable.MERGE_BY_COLUMNS) && k.toLowerCase().startsWith(FlightTable.MERGE_BY_COLUMN.toLowerCase()))
+                        .map(k -> options.getOrDefault(k, "")).filter(p -> !p.isEmpty()).toArray(String[]::new),
+                    //combine with merge.ByColumns
+                    options.containsKey(FlightTable.MERGE_BY_COLUMNS) ? options.get(FlightTable.MERGE_BY_COLUMNS).split("[;|,]") : new String[0]
+                ),
             Arrays.stream(options.getOrDefault(FlightTable.WRITE_TYPE_MAPPING, FlightTable._TYPE_MAPPING_DEFAULT).split(";"))
                 .map(tm -> Arrays.stream(tm.split(":")).map(s -> s.trim().toLowerCase()).toArray(String[]::new)).collect(Collectors.toMap(s -> s[0], s -> s[1]))
         );

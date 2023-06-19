@@ -9,10 +9,11 @@
         <scala.compact.version>2.12</scala.compact.version>
         <scala.version>2.12.15</scala.version>
         <spark.version>3.4.0</spark.version>
-        <arrow.version>8.0.0</arrow.version>
+        <arrow.version>12.0.1</arrow.version>
         <guava.version>32.0.0-jre</guava.version>
         <grpc.version>1.41.0</grpc.version>
         <netty.version>4.1.68.Final</netty.version>
+        <com.fasterxml.jackson>2.13.4</com.fasterxml.jackson>
 
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
@@ -23,7 +24,7 @@
 
     <groupId>com.qwshen</groupId>
     <artifactId>spark-flight-connector_${spark.version}</artifactId>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
     <packaging>jar</packaging>
 
     <build>
@@ -252,12 +253,12 @@
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-scala_${scala.compact.version}</artifactId>
-            <version>2.12.3</version>
+            <version>${com.fasterxml.jackson}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
-            <version>2.13.2</version>
+            <version>${com.fasterxml.jackson}</version>
         </dependency>
         <dependency>
             <groupId>joda-time</groupId>

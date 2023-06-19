@@ -1,7 +1,7 @@
 package com.qwshen.flight.spark.test
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.functions.{array, col, count, countDistinct, lit, map, max, min, struct, sum, sum_distinct, when}
+import org.apache.spark.sql.functions.{array, avg, col, count, countDistinct, lit, map, max, min, struct, sum, sum_distinct, when}
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.scalatest.{BeforeAndAfterEach, FunSuite}
@@ -216,7 +216,7 @@ class DremioTest extends FunSuite with BeforeAndAfterEach {
     df.filter(col("float_amount") >= lit(2.34f)).agg(max(col("float_amount")).as("max_float_amount"), sum(col("double_amount")).as("sum_double_amount")).show()
 
     //df.limit(10).show() //not supported
-    //df.distinct().show()  //not supported
+    df.distinct().show()
 
     df.filter(col("float_amount") >= lit(2.34f))
       .groupBy(col("gender"), col("birthyear"))
