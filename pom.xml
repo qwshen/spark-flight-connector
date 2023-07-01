@@ -10,7 +10,7 @@
         <scala.version>2.12.15</scala.version>
         <spark.version>3.3.2</spark.version>
         <arrow.version>12.0.1</arrow.version>
-        <guava.version>32.0.0-jre</guava.version>
+        <guava.version>32.0.1-jre</guava.version>
         <grpc.version>1.41.0</grpc.version>
         <netty.version>4.1.68.Final</netty.version>
         <com.fasterxml.jackson>2.13.4</com.fasterxml.jackson>
