@@ -5,18 +5,18 @@
     <modelVersion>4.0.0</modelVersion>
 
     <properties>
-        <java.version>1.8</java.version>
+        <java.version>17</java.version>
         <scala.compact.version>2.12</scala.compact.version>
-        <scala.version>2.12.15</scala.version>
-        <spark.version>3.4.0</spark.version>
+        <scala.version>2.12.18</scala.version>
+        <spark.version>3.5.7</spark.version>
         <arrow.version>12.0.1</arrow.version>
         <guava.version>32.0.1-jre</guava.version>
         <grpc.version>1.41.0</grpc.version>
         <netty.version>4.1.68.Final</netty.version>
         <com.fasterxml.jackson>2.13.4</com.fasterxml.jackson>
 
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -24,7 +24,7 @@
 
     <groupId>com.qwshen</groupId>
     <artifactId>spark-flight-connector_${spark.version}</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.5</version>
     <packaging>jar</packaging>
 
     <build>
@@ -32,7 +32,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.14.1</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
@@ -41,7 +41,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.5.2</version>
+                <version>4.8.1</version>
                 <executions>
                     <execution>
                         <goals>
@@ -54,7 +54,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.1</version>
+                <version>3.5.1</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -247,8 +247,8 @@
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpkix-jdk15on</artifactId>
-            <version>1.65</version>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>1.79</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>

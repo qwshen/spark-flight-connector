@@ -39,6 +39,9 @@ public class FlightWrite implements Write, BatchWrite, StreamingWrite {
     }
 
     @Override
+    public boolean useCommitCoordinator() { return true;}
+
+    @Override
     public BatchWrite toBatch() {
         return this;
     }
