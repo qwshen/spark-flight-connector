@@ -66,7 +66,7 @@ or
 import com.qwshen.flight.spark.implicits._
 val df = spark.read
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
-    .optoin("column.quote", "\"")
+    .option("column.quote", "\"")
     .options(options)  //other options
   .flight(""""e-commerce".orders""")
 df.show
@@ -94,7 +94,7 @@ Examples:
 import com.qwshen.flight.spark.implicits._
 spark.read
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
-    .optoin("column.quote", "\"")
+    .option("column.quote", "\"")
     .option("partition.size", 128).option("partition.byColumn", "order_date").option("partition.lowerBound", "2000-01-01").option("partition.upperBound", "2010-12-31")
   .flight(""""e-commerce".orders""")
 ```
@@ -103,7 +103,7 @@ spark.read
 import com.qwshen.flight.spark.implicits._
 spark.read
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
-    .optoin("column.quote", "\"")
+    .option("column.quote", "\"")
     .option("partition.size", 128).option("partition.byColumn", "order_id").option("partition.hashFunc", "hash")
   .flight(""""e-commerce".orders""")
 ```
@@ -112,7 +112,7 @@ spark.read
 import com.qwshen.flight.spark.implicits._
 spark.read
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
-    .optoin("column.quote", "\"")
+    .option("column.quote", "\"")
     .option("partition.size", 128)
     .option("partition.predicate.1", "92 <= event_id and event_id < 715827379").option("partition.predicate.2", "715827379 <= event_id and event_id < 1431654667")
     .option("partition.predicates", "1431654667 <= event_id and event_id < 2147481954;2147481954 <= event_id and event_id < 2863309242;2863309242 <= event_id and event_id < 3579136529") //concatenated with ;
@@ -188,7 +188,7 @@ or
 import com.qwshen.flight.spark.implicits._
 df.write
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
-    .option("merge.byColumns", "order_id,customer_id").optoin("column.quote", "\"")
+    .option("merge.byColumns", "order_id,customer_id").option("column.quote", "\"")
     .options(options)  //other options
     .mode("append")
   .flight(""""e-commerce".orders""")
@@ -218,7 +218,7 @@ Examples:
 ```scala
 df.write
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
-    .optoin("batch.size", 16000)
+    .option("batch.size", 16000)
     .option("merge.byColumn.1", "user_id").options("merge.byColumn.2", "product_id")
     .option("merge.byColumns", "order_date;order_amount") //concatenated with ;    
     .mode("append")
@@ -230,7 +230,7 @@ df.writeStream.format("flight")
     .option("host", "192.168.0.26").option("port", 32010).option("tls.enabled", true).option("tls.verifyServer", false).option("user", "test").option("password", "Password@123")
     .option("table", """"local-iceberg".iceberg_db.iceberg_events""")
     .option("checkpointLocation", s"/tmp/staging/checkpoint/events")        
-    .optoin("batch.size", 640)
+    .option("batch.size", 640)
   .trigger(Trigger.Once())
   .outputMode(OutputMode.Append())
   .start()
